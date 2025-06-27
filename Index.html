@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geoportal de Emergencias 911 - Análisis Criminal</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #map {
+            height: 600px;
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .sidebar {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            height: 600px;
+            overflow-y: auto;
+        }
+        .emergency-marker {
+            border-radius: 50%;
+            opacity: 0.8;
+        }
+        .header {
+            background-color: #343a40;
+            color: white;
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+        .data-table {
+            margin-top: 20px;
+        }
+        .legend {
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            line-height: 1.8;
+        }
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1><i class="bi bi-geo-alt-fill"></i> Geoportal de Emergencias 911</h1>
+            <p class="lead">Sistema de análisis criminal basado en llamadas de emergencia</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <div id="map"></div>
+            </div>
+            <div class="col-md-4">
+                <div class="sidebar">
+                    <h4>Filtros de Emergencias</h4>
+                    <div class="mb-3">
+                        <label for="emergencyType" class="form-label">Tipo de Emergencia</label>
+                        <select class="form-select" id="emergencyType">
+                            <option value="all">Todos los tipos</option>
+                            <option value="robbery">Robo</option>
+                            <option value="assault">Agresión</option>
+                            <option value="accident">Accidente</option>
+                            <option value="domestic">Violencia doméstica</option>
+                            <option value="medical">Emergencia médica</option>
+                            <option value="fire">Incendio</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="dateRange" class="form-label">Rango de Fechas</label>
+                        <input type="text" class="form-control" id="dateRange" placeholder="Seleccione rango">
+                    </div>
+                    <div class="mb-3">
+                        <label for="timeRange" class="form-label">Rango de Horas</label>
+                        <select class="form-select" id="timeRange">
+                            <option value="all">Todo el día</option>
+                            <option value="morning">Mañana (6am-12pm)</option>
+                            <option value="afternoon">Tarde (12pm-6pm)</option>
+                            <option value="evening">Noche (6pm-12am)</option>
+                            <option value="late-night">Madrugada (12am-6am)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="priority" class="form-label">Prioridad</label>
+                        <select class="form-select" id="priority">
+                            <option value="all">Todas</option>
+                            <option value="high">Alta</option>
+                            <option value="medium">Media</option>
+                            <option value="low">Baja</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary w-100 mb-3" id="applyFilters">Aplicar Filtros</button>
+                    <button class="btn btn-outline-secondary w-100" id="resetFilters">Restablecer</button>
+
+                    <div class="mt-4">
+                        <h5>Estadísticas</h5>
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Total de emergencias</h6>
+                                <p class="card-text fs-4" id="totalEmergencies">0</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">Distribución por tipo</h6>
+                                <div id="typeDistribution">
+                                    <small>Cargando datos...</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Registros de Emergencias</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="emergencyTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Tipo</th>
+                                        <th>Fecha/Hora</th>
+                                        <th>Dirección</th>
+                                        <th>Prioridad</th>
+                                        <th>Descripción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Los datos se cargarán dinámicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script>
+        // Inicializar el mapa
+        var map = L.map('map').setView([19.4326, -99.1332], 12); // Coordenadas de Ciudad de México como ejemplo
+
+        // Añadir capa base de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Capa para los marcadores de emergencia
+        var emergencyLayer = L.layerGroup().addTo(map);
+
+        // Datos de ejemplo (en una aplicación real, estos vendrían de una API)
+        var emergencyData = [
+            {id: 1, type: "robbery", date: "2023-05-15 14:30", lat: 19.435, lng: -99.14, address: "Av. Insurgentes 123", priority: "high", description: "Robo a mano armada"},
+            {id: 2, type: "assault", date: "2023-05-15 21:15", lat: 19.428, lng: -99.125, address: "Calle Reforma 456", priority: "medium", description: "Agresión física"},
+            {id: 3, type: "accident", date: "2023-05-16 08:45", lat: 19.442, lng: -99.135, address: "Eje Central 789", priority: "high", description: "Choque vehicular"},
+            {id: 4, type: "domestic", date: "2023-05-16 19:20", lat: 19.425, lng: -99.13, address: "Calle Madero 321", priority: "medium", description: "Violencia familiar"},
+            {id: 5, type: "medical", date: "2023-05-17 11:10", lat: 19.438, lng: -99.142, address: "Av. Hidalgo 654", priority: "high", description: "Infarto"},
+            {id: 6, type: "fire", date: "2023-05-17 23:05", lat: 19.431, lng: -99.128, address: "Calle Juárez 987", priority: "high", description: "Incendio en departamento"},
+            {id: 7, type: "robbery", date: "2023-05-18 02:30", lat: 19.433, lng: -99.132, address: "Av. Chapultepec 753", priority: "medium", description: "Robo de vehículo"},
+            {id: 8, type: "assault", date: "2023-05-18 16:45", lat: 19.427, lng: -99.138, address: "Calle Durango 246", priority: "low", description: "Agresión verbal"},
+            {id: 9, type: "accident", date: "2023-05-19 09:20", lat: 19.436, lng: -99.126, address: "Av. Universidad 135", priority: "medium", description: "Atropellamiento"},
+            {id: 10, type: "medical", date: "2023-05-19 22:15", lat: 19.424, lng: -99.134, address: "Calle Oaxaca 864", priority: "high", description: "Convulsiones"}
+        ];
+
+        // Función para obtener el color según el tipo de emergencia
+        function getColorByType(type) {
+            switch(type) {
+                case 'robbery': return '#ff0000'; // Rojo
+                case 'assault': return '#ff8000'; // Naranja
+                case 'accident': return '#ffff00'; // Amarillo
+                case 'domestic': return '#800080'; // Morado
+                case 'medical': return '#0000ff'; // Azul
+                case 'fire': return '#ff4000'; // Rojo anaranjado
+                default: return '#808080'; // Gris
+            }
+        }
+
+        // Función para mostrar los marcadores en el mapa
+        function plotEmergencies(data) {
+            emergencyLayer.clearLayers();
+            
+            data.forEach(function(emergency) {
+                var marker = L.circleMarker([emergency.lat, emergency.lng], {
+                    radius: 8,
+                    fillColor: getColorByType(emergency.type),
+                    color: "#000",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(emergencyLayer);
+                
+                marker.bindPopup(`
+                    <b>Tipo:</b> ${emergency.type}<br>
+                    <b>Fecha:</b> ${emergency.date}<br>
+                    <b>Dirección:</b> ${emergency.address}<br>
+                    <b>Prioridad:</b> ${emergency.priority}<br>
+                    <b>Descripción:</b> ${emergency.description}
+                `);
+            });
+            
+            // Actualizar estadísticas
+            updateStatistics(data);
+            
+            // Actualizar tabla
+            updateTable(data);
+        }
+
+        // Función para actualizar las estadísticas
+        function updateStatistics(data) {
+            $('#totalEmergencies').text(data.length);
+            
+            // Calcular distribución por tipo
+            var typeCount = {};
+            data.forEach(function(emergency) {
+                typeCount[emergency.type] = (typeCount[emergency.type] || 0) + 1;
+            });
+            
+            var typeDistributionHtml = '';
+            for (var type in typeCount) {
+                var count = typeCount[type];
+                var percentage = (count / data.length * 100).toFixed(1);
+                typeDistributionHtml += `
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>${type}</span>
+                        <span>${count} (${percentage}%)</span>
+                    </div>
+                    <div class="progress mb-2" style="height: 5px;">
+                        <div class="progress-bar" role="progressbar" style="width: ${percentage}%; background-color: ${getColorByType(type)};" 
+                             aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                `;
+            }
+            
+            $('#typeDistribution').html(typeDistributionHtml);
+        }
+
+        // Función para actualizar la tabla de datos
+        function updateTable(data) {
+            var tableBody = $('#emergencyTable tbody');
+            tableBody.empty();
+            
+            data.forEach(function(emergency) {
+                var row = `
+                    <tr>
+                        <td>${emergency.id}</td>
+                        <td><span class="badge" style="background-color: ${getColorByType(emergency.type)}">${emergency.type}</span></td>
+                        <td>${emergency.date}</td>
+                        <td>${emergency.address}</td>
+                        <td>
+                            ${emergency.priority === 'high' ? '<span class="badge bg-danger">Alta</span>' : 
+                              emergency.priority === 'medium' ? '<span class="badge bg-warning text-dark">Media</span>' : 
+                              '<span class="badge bg-secondary">Baja</span>'}
+                        </td>
+                        <td>${emergency.description}</td>
+                    </tr>
+                `;
+                tableBody.append(row);
+            });
+        }
+
+        // Función para aplicar filtros
+        function applyFilters() {
+            var typeFilter = $('#emergencyType').val();
+            var timeFilter = $('#timeRange').val();
+            var priorityFilter = $('#priority').val();
+            
+            var filteredData = emergencyData.filter(function(emergency) {
+                // Filtrar por tipo
+                if (typeFilter !== 'all' && emergency.type !== typeFilter) return false;
+                
+                // Filtrar por hora (simplificado)
+                if (timeFilter !== 'all') {
+                    var hour = parseInt(emergency.date.split(' ')[1].split(':')[0]);
+                    if (timeFilter === 'morning' && (hour < 6 || hour >= 12)) return false;
+                    if (timeFilter === 'afternoon' && (hour < 12 || hour >= 18)) return false;
+                    if (timeFilter === 'evening' && (hour < 18 || hour >= 24)) return false;
+                    if (timeFilter === 'late-night' && (hour < 0 || hour >= 6)) return false;
+                }
+                
+                // Filtrar por prioridad
+                if (priorityFilter !== 'all' && emergency.priority !== priorityFilter) return false;
+                
+                return true;
+            });
+            
+            plotEmergencies(filteredData);
+        }
+
+        // Eventos
+        $(document).ready(function() {
+            // Mostrar todos los datos inicialmente
+            plotEmergencies(emergencyData);
+            
+            // Aplicar filtros al hacer clic en el botón
+            $('#applyFilters').click(applyFilters);
+            
+            // Restablecer filtros
+            $('#resetFilters').click(function() {
+                $('#emergencyType').val('all');
+                $('#timeRange').val('all');
+                $('#priority').val('all');
+                plotEmergencies(emergencyData);
+            });
+        });
+
+        // Añadir leyenda al mapa
+        var legend = L.control({position: 'bottomright'});
+
+        legend.onAdd = function(map) {
+            var div = L.DomUtil.create('div', 'legend');
+            var types = ['robbery', 'assault', 'accident', 'domestic', 'medical', 'fire'];
+            var labels = ['Robo', 'Agresión', 'Accidente', 'Violencia doméstica', 'Emergencia médica', 'Incendio'];
+            
+            div.innerHTML = '<h6>Leyenda</h6>';
+            
+            for (var i = 0; i < types.length; i++) {
+                div.innerHTML += 
+                    '<i style="background:' + getColorByType(types[i]) + '"></i> ' + 
+                    labels[i] + '<br>';
+            }
+            
+            return div;
+        };
+
+        legend.addTo(map);
+    </script>
+</body>
+</html>
