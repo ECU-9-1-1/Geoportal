@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geoportal de Emergencias ECU 911 - Análisis del Crimen</title>
+    <title>Geoportal de Emergencias ECU 911 - Santo Domingo </title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -30,7 +32,7 @@
             opacity: 0.8;
         }
         .header {
-            background-color: #343a40;
+            background-color: #005c29; /* Verde oscuro similar al de la bandera de Santo Domingo */
             color: white;
             padding: 15px 0;
             margin-bottom: 20px;
@@ -52,12 +54,15 @@
             margin-right: 8px;
             opacity: 0.8;
         }
+        .badge {
+            text-transform: capitalize;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="container">
-            <h1><i class="bi bi-geo-alt-fill"></i> Geoportal de Emergencias 911</h1>
+            <h1><i class="bi bi-geo-alt-fill"></i> Geoportal de Emergencias 911 - Santo Domingo</h1>
             <p class="lead">Sistema de análisis criminal basado en llamadas de emergencia</p>
         </div>
     </div>
@@ -167,8 +172,11 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <script>
-        // Inicializar el mapa
-        var map = L.map('map').setView([19.4326, -99.1332], 12); // Coordenadas de Ciudad de México como ejemplo
+        // Coordenadas de Santo Domingo de los Tsáchilas, Ecuador
+        var santoDomingoCoords = [-0.252, -79.175];
+        
+        // Inicializar el mapa centrado en Santo Domingo
+        var map = L.map('map').setView(santoDomingoCoords, 13);
 
         // Añadir capa base de OpenStreetMap
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -178,19 +186,70 @@
         // Capa para los marcadores de emergencia
         var emergencyLayer = L.layerGroup().addTo(map);
 
-        // Datos de ejemplo (en una aplicación real, estos vendrían de una API)
-        var emergencyData = [
-            {id: 1, type: "robbery", date: "2023-05-15 14:30", lat: 19.435, lng: -99.14, address: "Av. Insurgentes 123", priority: "high", description: "Robo a mano armada"},
-            {id: 2, type: "assault", date: "2023-05-15 21:15", lat: 19.428, lng: -99.125, address: "Calle Reforma 456", priority: "medium", description: "Agresión física"},
-            {id: 3, type: "accident", date: "2023-05-16 08:45", lat: 19.442, lng: -99.135, address: "Eje Central 789", priority: "high", description: "Choque vehicular"},
-            {id: 4, type: "domestic", date: "2023-05-16 19:20", lat: 19.425, lng: -99.13, address: "Calle Madero 321", priority: "medium", description: "Violencia familiar"},
-            {id: 5, type: "medical", date: "2023-05-17 11:10", lat: 19.438, lng: -99.142, address: "Av. Hidalgo 654", priority: "high", description: "Infarto"},
-            {id: 6, type: "fire", date: "2023-05-17 23:05", lat: 19.431, lng: -99.128, address: "Calle Juárez 987", priority: "high", description: "Incendio en departamento"},
-            {id: 7, type: "robbery", date: "2023-05-18 02:30", lat: 19.433, lng: -99.132, address: "Av. Chapultepec 753", priority: "medium", description: "Robo de vehículo"},
-            {id: 8, type: "assault", date: "2023-05-18 16:45", lat: 19.427, lng: -99.138, address: "Calle Durango 246", priority: "low", description: "Agresión verbal"},
-            {id: 9, type: "accident", date: "2023-05-19 09:20", lat: 19.436, lng: -99.126, address: "Av. Universidad 135", priority: "medium", description: "Atropellamiento"},
-            {id: 10, type: "medical", date: "2023-05-19 22:15", lat: 19.424, lng: -99.134, address: "Calle Oaxaca 864", priority: "high", description: "Convulsiones"}
-        ];
+        // Generar datos de ejemplo alrededor de Santo Domingo
+        function generateSampleData() {
+            var types = ["robbery", "assault", "accident", "domestic", "medical", "fire"];
+            var priorities = ["high", "medium", "low"];
+            var addresses = [
+                "Av. Quito y Tsáchila", 
+                "Calle 3 de Julio", 
+                "Av. Abraham Calazacón", 
+                "Calle Esmeraldas", 
+                "Av. Río Toachi", 
+                "Calle Chone", 
+                "Av. Río Baba", 
+                "Calle Santo Domingo", 
+                "Av. Interoceánica", 
+                "Calle 29 de Mayo"
+            ];
+            
+            var data = [];
+            for (var i = 1; i <= 15; i++) {
+                // Generar coordenadas aleatorias cerca de Santo Domingo
+                var lat = santoDomingoCoords[0] + (Math.random() * 0.03 - 0.015);
+                var lng = santoDomingoCoords[1] + (Math.random() * 0.03 - 0.015);
+                
+                // Generar fecha aleatoria en los últimos 7 días
+                var date = new Date();
+                date.setDate(date.getDate() - Math.floor(Math.random() * 7));
+                var hours = Math.floor(Math.random() * 24);
+                var minutes = Math.floor(Math.random() * 60);
+                var formattedDate = date.toISOString().split('T')[0] + ' ' + 
+                                     hours.toString().padStart(2, '0') + ':' + 
+                                     minutes.toString().padStart(2, '0');
+                
+                var type = types[Math.floor(Math.random() * types.length)];
+                var priority = priorities[Math.floor(Math.random() * priorities.length)];
+                var address = addresses[Math.floor(Math.random() * addresses.length)] + ' #' + (Math.floor(Math.random() * 100) + 1;
+                
+                var descriptions = {
+                    "robbery": ["Robo a mano armada", "Robo de celular", "Robo de vehículo", "Robo en local comercial"],
+                    "assault": ["Agresión física", "Riña callejera", "Amenazas con arma blanca", "Intento de asalto"],
+                    "accident": ["Choque vehicular", "Atropellamiento", "Accidente de tránsito", "Volcamiento"],
+                    "domestic": ["Violencia intrafamiliar", "Disputa de pareja", "Maltrato infantil", "Amenazas entre familiares"],
+                    "medical": ["Infarto", "Convulsiones", "Accidente cerebrovascular", "Dificultad respiratoria"],
+                    "fire": ["Incendio en vivienda", "Incendio forestal", "Incendio en vehículo", "Fuga de gas"]
+                };
+                
+                var description = descriptions[type][Math.floor(Math.random() * descriptions[type].length)];
+                
+                data.push({
+                    id: i,
+                    type: type,
+                    date: formattedDate,
+                    lat: lat,
+                    lng: lng,
+                    address: address,
+                    priority: priority,
+                    description: description
+                });
+            }
+            
+            return data;
+        }
+
+        // Datos de ejemplo para Santo Domingo
+        var emergencyData = generateSampleData();
 
         // Función para obtener el color según el tipo de emergencia
         function getColorByType(type) {
@@ -270,10 +329,19 @@
             tableBody.empty();
             
             data.forEach(function(emergency) {
+                var typeNames = {
+                    "robbery": "Robo",
+                    "assault": "Agresión",
+                    "accident": "Accidente",
+                    "domestic": "Violencia doméstica",
+                    "medical": "Emergencia médica",
+                    "fire": "Incendio"
+                };
+                
                 var row = `
                     <tr>
                         <td>${emergency.id}</td>
-                        <td><span class="badge" style="background-color: ${getColorByType(emergency.type)}">${emergency.type}</span></td>
+                        <td><span class="badge" style="background-color: ${getColorByType(emergency.type)}">${typeNames[emergency.type]}</span></td>
                         <td>${emergency.date}</td>
                         <td>${emergency.address}</td>
                         <td>
