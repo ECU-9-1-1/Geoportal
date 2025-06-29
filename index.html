@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geoportal de Emergencias 911 - Conexión Supabase</title>
+    <title>Geoportal de Alertas de Emergencia</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <!-- Bootstrap CSS -->
@@ -27,18 +27,24 @@
             height: 600px;
             overflow-y: auto;
         }
-        .emergency-marker {
-            border-radius: 50%;
-            opacity: 0.8;
-        }
         .header {
             background-color: #005c29;
             color: white;
             padding: 15px 0;
             margin-bottom: 20px;
         }
-        .data-table {
-            margin-top: 20px;
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.3);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         .legend {
             padding: 10px;
@@ -54,29 +60,13 @@
             margin-right: 8px;
             opacity: 0.8;
         }
-        .badge {
-            text-transform: capitalize;
-        }
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(0,0,0,.3);
-            border-radius: 50%;
-            border-top-color: #000;
-            animation: spin 1s ease-in-out infinite;
-            margin-right: 10px;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="container">
-            <h1><i class="bi bi-geo-alt-fill"></i> Geoportal de Emergencias 911 - Conexión Supabase</h1>
-            <p class="lead">Sistema de análisis criminal basado en llamadas de emergencia</p>
+            <h1><i class="bi bi-geo-alt-fill"></i> Geoportal de Alertas de Emergencia</h1>
+            <p class="lead">Visualización en tiempo real de alertas</p>
         </div>
     </div>
 
@@ -87,49 +77,39 @@
             </div>
             <div class="col-md-4">
                 <div class="sidebar">
-                    <h4>Filtros de Emergencias</h4>
+                    <h4>Filtros de Alertas</h4>
                     <div class="mb-3">
-                        <label for="emergencyType" class="form-label">Tipo de Emergencia</label>
+                        <label for="emergencyType" class="form-label">Tipo de Alerta</label>
                         <select class="form-select" id="emergencyType">
                             <option value="all">Todos los tipos</option>
-                            <!-- Las opciones se cargarán dinámicamente -->
+                            <!-- Opciones se cargarán dinámicamente -->
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="dateRange" class="form-label">Rango de Fechas</label>
-                        <input type="text" class="form-control" id="dateRange" placeholder="Seleccione rango">
-                    </div>
-                    <div class="mb-3">
-                        <label for="timeRange" class="form-label">Rango de Horas</label>
-                        <select class="form-select" id="timeRange">
-                            <option value="all">Todo el día</option>
-                            <option value="morning">Mañana (6am-12pm)</option>
-                            <option value="afternoon">Tarde (12pm-6pm)</option>
-                            <option value="evening">Noche (6pm-12am)</option>
-                            <option value="late-night">Madrugada (12am-6am)</option>
-                        </select>
+                        <input type="date" class="form-control" id="startDate">
+                        <input type="date" class="form-control mt-2" id="endDate">
                     </div>
                     <div class="mb-3">
                         <label for="priority" class="form-label">Prioridad</label>
                         <select class="form-select" id="priority">
                             <option value="all">Todas</option>
-                            <option value="high">Alta</option>
-                            <option value="medium">Media</option>
-                            <option value="low">Baja</option>
+                            <option value="alta">Alta</option>
+                            <option value="media">Media</option>
+                            <option value="baja">Baja</option>
                         </select>
                     </div>
                     <button class="btn btn-primary w-100 mb-3" id="applyFilters">
                         <span id="filterText">Aplicar Filtros</span>
                         <span id="filterLoading" class="loading" style="display: none;"></span>
                     </button>
-                    <button class="btn btn-outline-secondary w-100" id="resetFilters">Restablecer</button>
-
+                    
                     <div class="mt-4">
                         <h5>Estadísticas</h5>
                         <div class="card mb-2">
                             <div class="card-body">
-                                <h6 class="card-subtitle mb-2 text-muted">Total de emergencias</h6>
-                                <p class="card-text fs-4" id="totalEmergencies">0</p>
+                                <h6 class="card-subtitle mb-2 text-muted">Total de alertas</h6>
+                                <p class="card-text fs-4" id="totalAlerts">0</p>
                             </div>
                         </div>
                         <div class="card">
@@ -149,220 +129,105 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <h5>Registros de Emergencias</h5>
+                        <h5>Registros de Alertas</h5>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped table-hover" id="emergencyTable">
+                            <table class="table table-striped table-hover" id="alertsTable">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
                                         <th>Tipo</th>
                                         <th>Fecha/Hora</th>
-                                        <th>Dirección</th>
+                                        <th>Ubicación</th>
                                         <th>Prioridad</th>
                                         <th>Descripción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Los datos se cargarán dinámicamente -->
+                                    <!-- Datos se cargarán dinámicamente -->
                                 </tbody>
                             </table>
                         </div>
-                        <nav aria-label="Page navigation">
-                            <ul class="pagination justify-content-center" id="pagination">
-                                <!-- La paginación se generará dinámicamente -->
-                            </ul>
-                        </nav>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- SDK de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- PapaParse para CSV (opcional) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     
     <script>
-        // Configuración de conexión a Supabase PostgreSQL
-        const dbConfig = {
-            host: 'aws-0-us-east-2.pooler.supabase.com',
-            database: 'postgres',
-            username: 'postgres.dmlpacanmmccpikaysvm',
-            password: 'DiLiCvPNJkx8mhSk',
-            port: 6543
-        };
-
-        // Coordenadas de Santo Domingo de los Tsáchilas, Ecuador
-        var santoDomingoCoords = [-0.252, -79.175];
+        // Configuración de Supabase con tus credenciales
+        const SUPABASE_URL = "https://dmlpacanmmccpikaysvm.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtbHBhY2FubW1jY3Bpa2F5c3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTQzNjY0MjQsImV4cCI6MjAwOTk0MjQyNH0.2lFYM3bDwLUggK8GqKx_7BVN9qH0pYQwEjT7xazW0FM";
         
-        // Inicializar el mapa centrado en Santo Domingo
-        var map = L.map('map').setView(santoDomingoCoords, 13);
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Añadir capa base de OpenStreetMap
+        // Coordenadas iniciales (Santo Domingo, Ecuador)
+        const initialCoords = [-0.252, -79.175];
+        
+        // Inicializar mapa
+        const map = L.map('map').setView(initialCoords, 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+        
+        const emergencyLayer = L.layerGroup().addTo(map);
 
-        // Capa para los marcadores de emergencia
-        var emergencyLayer = L.layerGroup().addTo(map);
-
-        // Variable para almacenar los datos de emergencia
-        var emergencyData = [];
-        var currentPage = 1;
-        var itemsPerPage = 10;
-        var totalItems = 0;
-
-        // Función para obtener el color según el tipo de emergencia
-        function getColorByType(type) {
-            switch(type) {
-                case 'robbery': return '#ff0000'; // Rojo
-                case 'assault': return '#ff8000'; // Naranja
-                case 'accident': return '#ffff00'; // Amarillo
-                case 'domestic': return '#800080'; // Morado
-                case 'medical': return '#0000ff'; // Azul
-                case 'fire': return '#ff4000'; // Rojo anaranjado
-                default: return '#808080'; // Gris
-            }
-        }
-
-        // Función para conectar a Supabase y obtener datos
-        async function fetchEmergencyData(filters = {}) {
+        // Función para cargar alertas desde Supabase
+        async function loadAlerts(filters = {}) {
             try {
-                // Mostrar indicador de carga
-                $('#filterText').hide();
-                $('#filterLoading').show();
-                $('#applyFilters').prop('disabled', true);
+                showLoading(true);
                 
-                // Construir URL de conexión (en producción, usa un backend seguro)
-                const connectionString = `postgres://${dbConfig.username}:${encodeURIComponent(dbConfig.password)}@${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`;
+                let query = supabase
+                    .from('alertas_emergencia')
+                    .select('*', { count: 'exact' });
                 
-                // En una aplicación real, deberías usar un backend seguro para las consultas
-                // Esta es una simulación de cómo sería la consulta
-                console.log("Conectando a Supabase PostgreSQL...");
-                
-                // Simulación de consulta (reemplaza esto con tu conexión real)
-                // En producción, usa un servidor backend para manejar las credenciales de la base de datos
-                let query = "SELECT * FROM emergencies WHERE 1=1";
-                let params = [];
-                
+                // Aplicar filtros
                 if (filters.type && filters.type !== 'all') {
-                    query += " AND type = $1";
-                    params.push(filters.type);
+                    query = query.eq('tipo', filters.type);
                 }
                 
                 if (filters.priority && filters.priority !== 'all') {
-                    query += " AND priority = $" + (params.length + 1);
-                    params.push(filters.priority);
+                    query = query.eq('prioridad', filters.priority);
                 }
                 
-                // Aquí iría la lógica real para conectarse a Supabase
-                // Por ahora usaremos datos simulados con un retraso para simular la conexión
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Datos simulados (reemplaza esto con tu consulta real)
-                let simulatedData = generateSampleData();
-                
-                if (filters.type && filters.type !== 'all') {
-                    simulatedData = simulatedData.filter(e => e.type === filters.type);
+                if (filters.startDate && filters.endDate) {
+                    query = query.gte('fecha_hora', filters.startDate)
+                               .lte('fecha_hora', filters.endDate);
                 }
                 
-                if (filters.priority && filters.priority !== 'all') {
-                    simulatedData = simulatedData.filter(e => e.priority === filters.priority);
-                }
+                const { data, error, count } = await query;
                 
-                // Simular paginación
-                totalItems = simulatedData.length;
-                updatePagination();
+                if (error) throw error;
                 
-                return simulatedData;
-            } catch (error) {
-                console.error("Error al conectar con la base de datos:", error);
-                alert("Error al cargar datos. Verifica la consola para más detalles.");
-                return [];
-            } finally {
-                $('#filterText').show();
-                $('#filterLoading').hide();
-                $('#applyFilters').prop('disabled', false);
-            }
-        }
-
-        // Función para generar datos de ejemplo (simula la respuesta de Supabase)
-        function generateSampleData() {
-            var types = ["robbery", "assault", "accident", "domestic", "medical", "fire"];
-            var priorities = ["high", "medium", "low"];
-            var addresses = [
-                "Av. Quito y Tsáchila", 
-                "Calle 3 de Julio", 
-                "Av. Abraham Calazacón", 
-                "Calle Esmeraldas", 
-                "Av. Río Toachi", 
-                "Calle Chone", 
-                "Av. Río Baba", 
-                "Calle Santo Domingo", 
-                "Av. Interoceánica", 
-                "Calle 29 de Mayo"
-            ];
-            
-            var data = [];
-            for (var i = 1; i <= 50; i++) {
-                // Generar coordenadas aleatorias cerca de Santo Domingo
-                var lat = santoDomingoCoords[0] + (Math.random() * 0.03 - 0.015);
-                var lng = santoDomingoCoords[1] + (Math.random() * 0.03 - 0.015);
-                
-                // Generar fecha aleatoria en los últimos 30 días
-                var date = new Date();
-                date.setDate(date.getDate() - Math.floor(Math.random() * 30));
-                var hours = Math.floor(Math.random() * 24);
-                var minutes = Math.floor(Math.random() * 60);
-                var formattedDate = date.toISOString().split('T')[0] + ' ' + 
-                                     hours.toString().padStart(2, '0') + ':' + 
-                                     minutes.toString().padStart(2, '0');
-                
-                var type = types[Math.floor(Math.random() * types.length)];
-                var priority = priorities[Math.floor(Math.random() * priorities.length)];
-                var address = addresses[Math.floor(Math.random() * addresses.length)] + ' #' + (Math.floor(Math.random() * 100) + 1);
-                
-                var descriptions = {
-                    "robbery": ["Robo a mano armada", "Robo de celular", "Robo de vehículo", "Robo en local comercial"],
-                    "assault": ["Agresión física", "Riña callejera", "Amenazas con arma blanca", "Intento de asalto"],
-                    "accident": ["Choque vehicular", "Atropellamiento", "Accidente de tránsito", "Volcamiento"],
-                    "domestic": ["Violencia intrafamiliar", "Disputa de pareja", "Maltrato infantil", "Amenazas entre familiares"],
-                    "medical": ["Infarto", "Convulsiones", "Accidente cerebrovascular", "Dificultad respiratoria"],
-                    "fire": ["Incendio en vivienda", "Incendio forestal", "Incendio en vehículo", "Fuga de gas"]
+                return {
+                    alerts: data || [],
+                    total: count || 0
                 };
-                
-                var description = descriptions[type][Math.floor(Math.random() * descriptions[type].length)];
-                
-                data.push({
-                    id: i,
-                    type: type,
-                    date: formattedDate,
-                    lat: lat,
-                    lng: lng,
-                    address: address,
-                    priority: priority,
-                    description: description
-                });
+            } catch (error) {
+                console.error('Error al cargar alertas:', error);
+                alert('Error al cargar datos. Ver consola para detalles.');
+                return { alerts: [], total: 0 };
+            } finally {
+                showLoading(false);
             }
-            
-            return data;
         }
 
-        // Función para mostrar los marcadores en el mapa
-        function plotEmergencies(data) {
+        // Función para mostrar alertas en el mapa
+        function displayAlerts(alerts) {
             emergencyLayer.clearLayers();
             
-            data.forEach(function(emergency) {
-                var marker = L.circleMarker([emergency.lat, emergency.lng], {
+            alerts.forEach(alert => {
+                const marker = L.circleMarker([alert.latitud, alert.longitud], {
                     radius: 8,
-                    fillColor: getColorByType(emergency.type),
+                    fillColor: getColorByType(alert.tipo),
                     color: "#000",
                     weight: 1,
                     opacity: 1,
@@ -370,205 +235,184 @@
                 }).addTo(emergencyLayer);
                 
                 marker.bindPopup(`
-                    <b>Tipo:</b> ${emergency.type}<br>
-                    <b>Fecha:</b> ${emergency.date}<br>
-                    <b>Dirección:</b> ${emergency.address}<br>
-                    <b>Prioridad:</b> ${emergency.priority}<br>
-                    <b>Descripción:</b> ${emergency.description}
+                    <b>Tipo:</b> ${alert.tipo}<br>
+                    <b>Fecha:</b> ${formatDate(alert.fecha_hora)}<br>
+                    <b>Dirección:</b> ${alert.direccion || 'No especificada'}<br>
+                    <b>Prioridad:</b> ${alert.prioridad}<br>
+                    <b>Descripción:</b> ${alert.descripcion || 'Sin descripción'}
                 `);
             });
             
-            // Actualizar estadísticas
-            updateStatistics(data);
-            
-            // Actualizar tabla con paginación
-            updateTableWithPagination(data);
+            updateStatistics(alerts);
+            updateTable(alerts);
         }
 
-        // Función para actualizar las estadísticas
-        function updateStatistics(data) {
-            $('#totalEmergencies').text(data.length);
+        // Función auxiliar para formatear fecha
+        function formatDate(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleString();
+        }
+
+        // Función para obtener color según tipo de alerta
+        function getColorByType(type) {
+            const typeColors = {
+                'incendio': '#ff4000',
+                'accidente': '#ffcc00',
+                'delito': '#ff0000',
+                'medica': '#0066ff',
+                'natural': '#00aa00',
+                'violencia': '#990099',
+                'otro': '#666666'
+            };
+            
+            return typeColors[type.toLowerCase()] || '#666666';
+        }
+
+        // Función para actualizar estadísticas
+        function updateStatistics(alerts) {
+            $('#totalAlerts').text(alerts.length);
             
             // Calcular distribución por tipo
-            var typeCount = {};
-            data.forEach(function(emergency) {
-                typeCount[emergency.type] = (typeCount[emergency.type] || 0) + 1;
+            const typeCount = {};
+            alerts.forEach(alert => {
+                typeCount[alert.tipo] = (typeCount[alert.tipo] || 0) + 1;
             });
             
-            var typeDistributionHtml = '';
-            for (var type in typeCount) {
-                var count = typeCount[type];
-                var percentage = (count / data.length * 100).toFixed(1);
-                typeDistributionHtml += `
+            let distributionHtml = '';
+            for (const [type, count] of Object.entries(typeCount)) {
+                const percentage = (count / alerts.length * 100).toFixed(1);
+                distributionHtml += `
                     <div class="d-flex justify-content-between mb-1">
                         <span>${type}</span>
                         <span>${count} (${percentage}%)</span>
                     </div>
                     <div class="progress mb-2" style="height: 5px;">
-                        <div class="progress-bar" role="progressbar" style="width: ${percentage}%; background-color: ${getColorByType(type)};" 
-                             aria-valuenow="${percentage}" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: ${percentage}%; background-color: ${getColorByType(type)};">
+                        </div>
                     </div>
                 `;
             }
             
-            $('#typeDistribution').html(typeDistributionHtml);
+            $('#typeDistribution').html(distributionHtml);
         }
 
-        // Función para actualizar la tabla con paginación
-        function updateTableWithPagination(data) {
-            var startIndex = (currentPage - 1) * itemsPerPage;
-            var endIndex = startIndex + itemsPerPage;
-            var paginatedData = data.slice(startIndex, endIndex);
-            
-            var tableBody = $('#emergencyTable tbody');
+        // Función para actualizar la tabla
+        function updateTable(alerts) {
+            const tableBody = $('#alertsTable tbody');
             tableBody.empty();
             
-            paginatedData.forEach(function(emergency) {
-                var typeNames = {
-                    "robbery": "Robo",
-                    "assault": "Agresión",
-                    "accident": "Accidente",
-                    "domestic": "Violencia doméstica",
-                    "medical": "Emergencia médica",
-                    "fire": "Incendio"
-                };
-                
-                var row = `
+            alerts.forEach(alert => {
+                const row = `
                     <tr>
-                        <td>${emergency.id}</td>
-                        <td><span class="badge" style="background-color: ${getColorByType(emergency.type)}">${typeNames[emergency.type]}</span></td>
-                        <td>${emergency.date}</td>
-                        <td>${emergency.address}</td>
+                        <td>${alert.id}</td>
+                        <td><span class="badge" style="background-color: ${getColorByType(alert.tipo)}">${alert.tipo}</span></td>
+                        <td>${formatDate(alert.fecha_hora)}</td>
+                        <td>${alert.direccion || 'No especificada'}</td>
                         <td>
-                            ${emergency.priority === 'high' ? '<span class="badge bg-danger">Alta</span>' : 
-                              emergency.priority === 'medium' ? '<span class="badge bg-warning text-dark">Media</span>' : 
+                            ${alert.prioridad === 'alta' ? '<span class="badge bg-danger">Alta</span>' : 
+                              alert.prioridad === 'media' ? '<span class="badge bg-warning text-dark">Media</span>' : 
                               '<span class="badge bg-secondary">Baja</span>'}
                         </td>
-                        <td>${emergency.description}</td>
+                        <td>${alert.descripcion || 'Sin descripción'}</td>
                     </tr>
                 `;
                 tableBody.append(row);
             });
         }
 
-        // Función para actualizar la paginación
-        function updatePagination() {
-            var totalPages = Math.ceil(totalItems / itemsPerPage);
-            var pagination = $('#pagination');
-            pagination.empty();
-            
-            // Botón Anterior
-            pagination.append(`
-                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-                    <a class="page-link" href="#" data-page="${currentPage - 1}">Anterior</a>
-                </li>
-            `);
-            
-            // Números de página
-            for (var i = 1; i <= totalPages; i++) {
-                pagination.append(`
-                    <li class="page-item ${i === currentPage ? 'active' : ''}">
-                        <a class="page-link" href="#" data-page="${i}">${i}</a>
-                    </li>
-                `);
-            }
-            
-            // Botón Siguiente
-            pagination.append(`
-                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-                    <a class="page-link" href="#" data-page="${currentPage + 1}">Siguiente</a>
-                </li>
-            `);
-        }
-
-        // Función para aplicar filtros
-        async function applyFilters() {
-            var typeFilter = $('#emergencyType').val();
-            var timeFilter = $('#timeRange').val();
-            var priorityFilter = $('#priority').val();
-            
-            // Construir objeto de filtros
-            var filters = {
-                type: typeFilter,
-                priority: priorityFilter
-                // Agregar más filtros según sea necesario
-            };
-            
-            // Obtener datos filtrados de Supabase
-            emergencyData = await fetchEmergencyData(filters);
-            
-            // Aplicar filtro de hora en el cliente (podría hacerse en el servidor)
-            var filteredData = emergencyData.filter(function(emergency) {
-                if (timeFilter !== 'all') {
-                    var hour = parseInt(emergency.date.split(' ')[1].split(':')[0]);
-                    if (timeFilter === 'morning' && (hour < 6 || hour >= 12)) return false;
-                    if (timeFilter === 'afternoon' && (hour < 12 || hour >= 18)) return false;
-                    if (timeFilter === 'evening' && (hour < 18 || hour >= 24)) return false;
-                    if (timeFilter === 'late-night' && (hour < 0 || hour >= 6)) return false;
-                }
-                return true;
-            });
-            
-            // Actualizar con los datos filtrados
-            plotEmergencies(filteredData);
-        }
-
-        // Eventos
-        $(document).ready(async function() {
-            // Cargar tipos de emergencia dinámicamente (simulado)
-            var types = ["robbery", "assault", "accident", "domestic", "medical", "fire"];
-            var typeSelect = $('#emergencyType');
-            
-            types.forEach(function(type) {
-                typeSelect.append(`<option value="${type}">${type.charAt(0).toUpperCase() + type.slice(1)}</option>`);
-            });
-            
-            // Cargar datos iniciales
-            emergencyData = await fetchEmergencyData();
-            plotEmergencies(emergencyData);
-            
-            // Aplicar filtros al hacer clic en el botón
-            $('#applyFilters').click(applyFilters);
-            
-            // Restablecer filtros
-            $('#resetFilters').click(function() {
-                $('#emergencyType').val('all');
-                $('#timeRange').val('all');
-                $('#priority').val('all');
-                currentPage = 1;
-                fetchEmergencyData().then(data => {
-                    emergencyData = data;
-                    plotEmergencies(emergencyData);
+        // Función para cargar tipos de alertas disponibles
+        async function loadAlertTypes() {
+            try {
+                const { data, error } = await supabase
+                    .from('alertas_emergencia')
+                    .select('tipo')
+                    .not('tipo', 'is', null);
+                
+                if (error) throw error;
+                
+                const uniqueTypes = [...new Set(data.map(item => item.tipo))];
+                const typeSelect = $('#emergencyType');
+                
+                uniqueTypes.forEach(type => {
+                    typeSelect.append(`<option value="${type}">${type}</option>`);
                 });
+            } catch (error) {
+                console.error('Error al cargar tipos:', error);
+            }
+        }
+
+        // Función para mostrar/ocultar carga
+        function showLoading(show) {
+            if (show) {
+                $('#filterText').hide();
+                $('#filterLoading').show();
+                $('#applyFilters').prop('disabled', true);
+            } else {
+                $('#filterText').show();
+                $('#filterLoading').hide();
+                $('#applyFilters').prop('disabled', false);
+            }
+        }
+
+        // Función para obtener filtros actuales
+        function getCurrentFilters() {
+            return {
+                type: $('#emergencyType').val(),
+                priority: $('#priority').val(),
+                startDate: $('#startDate').val(),
+                endDate: $('#endDate').val()
+            };
+        }
+
+        // Inicialización
+        $(document).ready(async function() {
+            // Cargar tipos de alertas disponibles
+            await loadAlertTypes();
+            
+            // Carga inicial de datos
+            const { alerts } = await loadAlerts();
+            displayAlerts(alerts);
+            
+            // Configurar evento de filtros
+            $('#applyFilters').click(async function() {
+                const filters = getCurrentFilters();
+                const { alerts } = await loadAlerts(filters);
+                displayAlerts(alerts);
             });
             
-            // Manejar clics en la paginación
-            $(document).on('click', '.page-link', function(e) {
-                e.preventDefault();
-                currentPage = parseInt($(this).data('page'));
-                updateTableWithPagination(emergencyData);
-            });
+            // Configurar fecha por defecto (últimos 7 días)
+            const today = new Date();
+            const lastWeek = new Date();
+            lastWeek.setDate(today.getDate() - 7);
+            
+            $('#startDate').val(lastWeek.toISOString().split('T')[0]);
+            $('#endDate').val(today.toISOString().split('T')[0]);
         });
 
         // Añadir leyenda al mapa
-        var legend = L.control({position: 'bottomright'});
-
+        const legend = L.control({position: 'bottomright'});
         legend.onAdd = function(map) {
-            var div = L.DomUtil.create('div', 'legend');
-            var types = ['robbery', 'assault', 'accident', 'domestic', 'medical', 'fire'];
-            var labels = ['Robo', 'Agresión', 'Accidente', 'Violencia doméstica', 'Emergencia médica', 'Incendio'];
+            const div = L.DomUtil.create('div', 'legend');
+            const types = {
+                'incendio': 'Incendio',
+                'accidente': 'Accidente',
+                'delito': 'Delito',
+                'medica': 'Emergencia Médica',
+                'natural': 'Desastre Natural',
+                'violencia': 'Violencia',
+                'otro': 'Otro'
+            };
             
             div.innerHTML = '<h6>Leyenda</h6>';
             
-            for (var i = 0; i < types.length; i++) {
+            for (const [type, label] of Object.entries(types)) {
                 div.innerHTML += 
-                    '<i style="background:' + getColorByType(types[i]) + '"></i> ' + 
-                    labels[i] + '<br>';
+                    `<i style="background:${getColorByType(type)}"></i> ${label}<br>`;
             }
             
             return div;
         };
-
         legend.addTo(map);
     </script>
 </body>
