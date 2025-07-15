@@ -1,537 +1,1022 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geoportal de Emergencias 911 - Conexión Supabase</title>
+    <title>Geoportal SDT - Sistema de Información Geográfica</title>
+    
     <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            overflow: hidden;
         }
-        #map {
-            height: 600px;
-            width: 100%;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .sidebar {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            height: 600px;
-            overflow-y: auto;
-        }
-        .emergency-marker {
-            border-radius: 50%;
-            opacity: 0.8;
-        }
+
+        /* Header */
         .header {
-            background-color: #005c29;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px 0;
-            margin-bottom: 20px;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
         }
-        .data-table {
-            margin-top: 20px;
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
         }
-        .legend {
-            padding: 10px;
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo i {
+            font-size: 28px;
+            color: #fff;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .logo .subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .connection-panel {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.1);
+            padding: 8px 15px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .connection-panel input {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        .connection-panel input::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        .connection-panel input:focus {
+            outline: none;
+            border-color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.3);
+        }
+
+        .btn-connect {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-connect:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+            position: relative;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
             background: white;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            line-height: 1.8;
+            border-right: 1px solid #e0e6ed;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+            z-index: 900;
         }
-        .legend i {
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e6ed;
+            background: #f8f9fa;
+        }
+
+        .sidebar-header h3 {
+            color: #2c3e50;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #dc3545;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .progress-container {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .layer-section {
+            margin-bottom: 25px;
+        }
+
+        .layer-section h4 {
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .layer-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .layer-item:hover {
+            background: #e9ecef;
+            border-color: #dee2e6;
+        }
+
+        .layer-item.active {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .layer-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .layer-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid #dee2e6;
+            flex-shrink: 0;
+        }
+
+        .layer-toggle {
+            margin-right: 8px;
             width: 18px;
             height: 18px;
-            float: left;
-            margin-right: 8px;
-            opacity: 0.8;
+            cursor: pointer;
         }
-        .badge {
-            text-transform: capitalize;
+
+        .layer-name {
+            font-weight: 600;
+            color: #2c3e50;
+            flex: 1;
         }
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(0,0,0,.3);
+
+        .layer-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .layer-btn {
+            background: none;
+            border: 1px solid #dee2e6;
+            color: #6c757d;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .layer-btn:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .layer-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .feature-count {
+            font-weight: 500;
+        }
+
+        /* Map Container */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* Sidebar Toggle */
+        .sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            border: none;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            border-top-color: #000;
-            animation: spin 1s ease-in-out infinite;
-            margin-right: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: all 0.3s;
         }
+
+        .sidebar-toggle:hover {
+            background: #f8f9fa;
+            transform: scale(1.05);
+        }
+
+        /* Map Controls */
+        .map-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .map-control {
+            background: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .map-control:hover {
+            background: #f8f9fa;
+            transform: translateY(-1px);
+        }
+
+        /* Feature Info Panel */
+        .feature-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .feature-info.show {
+            transform: translateY(0);
+        }
+
+        .feature-info h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .close-info {
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        /* Legend */
+        .legend {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 250px;
+        }
+
+        .legend h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .connection-panel {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .connection-panel input {
+                width: 150px;
+            }
+
+            .sidebar {
+                width: 280px;
+            }
+
+            .feature-info {
+                left: 10px;
+                right: 10px;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            color: #6c757d;
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+        }
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
+    <!-- Header -->
     <div class="header">
-        <div class="container">
-            <h1><i class="bi bi-geo-alt-fill"></i> Geoportal de Emergencias 911 - Conexión Supabase</h1>
-            <p class="lead">Sistema de análisis criminal basado en llamadas de emergencia</p>
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-globe-americas"></i>
+                <div>
+                    <h1>Geoportal SDT</h1>
+                    <div class="subtitle">Sistema de Información Geográfica</div>
+                </div>
+            </div>
+            <div class="connection-panel">
+                <input type="text" id="supabaseUrl" placeholder="Supabase URL" />
+                <input type="password" id="supabaseKey" placeholder="API Key" />
+                <button class="btn-connect" onclick="connect()">
+                    <i class="fas fa-plug"></i> Conectar
+                </button>
+            </div>
         </div>
     </div>
 
-    <div class="container">
-        <div class="row">
-            <div class="col-md-8">
-                <div id="map"></div>
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>Capas de Información</h3>
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Desconectado</span>
+                </div>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress" id="progress"></div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-4">
-                <div class="sidebar">
-                    <h4>Filtros de Emergencias</h4>
-                    <div class="mb-3">
-                        <label for="emergencyType" class="form-label">Tipo de Emergencia</label>
-                        <select class="form-select" id="emergencyType">
-                            <option value="all">Todos los tipos</option>
-                            <!-- Las opciones se cargarán dinámicamente -->
-                        </select>
+            <div class="sidebar-content">
+                <div class="layer-section">
+                    <h4><i class="fas fa-layer-group"></i> Capas Disponibles</h4>
+                    <div id="layersList">
+                        <div class="loading" id="loadingLayers">
+                            <i class="fas fa-spinner"></i>
+                            <span>Conecte para cargar capas...</span>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="dateRange" class="form-label">Rango de Fechas</label>
-                        <input type="date" class="form-control" id="startDate">
-                        <input type="date" class="form-control mt-2" id="endDate">
-                    </div>
-                    <div class="mb-3">
-                        <label for="timeRange" class="form-label">Rango de Horas</label>
-                        <select class="form-select" id="timeRange">
-                            <option value="all">Todo el día</option>
-                            <option value="morning">Mañana (6am-12pm)</option>
-                            <option value="afternoon">Tarde (12pm-6pm)</option>
-                            <option value="evening">Noche (6pm-12am)</option>
-                            <option value="late-night">Madrugada (12am-6am)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="priority" class="form-label">Prioridad</label>
-                        <select class="form-select" id="priority">
-                            <option value="all">Todas</option>
-                            <option value="alta">Alta</option>
-                            <option value="media">Media</option>
-                            <option value="baja">Baja</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary w-100 mb-3" id="applyFilters">
-                        <span id="filterText">Aplicar Filtros</span>
-                        <span id="filterLoading" class="loading" style="display: none;"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="map-container">
+            <button class="sidebar-toggle" onclick="toggleSidebar()">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="map-controls">
+                <button class="map-control" onclick="zoomToAll()" title="Zoom a todas las capas">
+                    <i class="fas fa-expand-arrows-alt"></i>
+                </button>
+                <button class="map-control" onclick="toggleFullscreen()" title="Pantalla completa">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+
+            <div id="map"></div>
+            
+            <div class="feature-info" id="featureInfo">
+                <h4>
+                    Información del Elemento
+                    <button class="close-info" onclick="closeFeatureInfo()">
+                        <i class="fas fa-times"></i>
                     </button>
-                    <button class="btn btn-outline-secondary w-100" id="resetFilters">Restablecer</button>
-
-                    <div class="mt-4">
-                        <h5>Estadísticas</h5>
-                        <div class="card mb-2">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 text-muted">Total de emergencias</h6>
-                                <p class="card-text fs-4" id="totalEmergencies">0</p>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <div class="card-body">
-                                <h6 class="card-subtitle mb-2 text-muted">Distribución por tipo</h6>
-                                <div id="typeDistribution">
-                                    <small>Cargando datos...</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Registros de Emergencias</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover" id="emergencyTable">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Tipo</th>
-                                        <th>Fecha/Hora</th>
-                                        <th>Dirección</th>
-                                        <th>Prioridad</th>
-                                        <th>Descripción</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Los datos se cargarán dinámicamente -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <nav aria-label="Page navigation">
-                            <ul class="pagination justify-content-center" id="pagination">
-                                <!-- La paginación se generará dinámicamente -->
-                            </ul>
-                        </nav>
-                    </div>
+                </h4>
+                <div id="featureContent">
+                    Seleccione un elemento en el mapa para ver su información.
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- SDK de Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
     <script>
-        // Configuración de Supabase con tus credenciales
-        const SUPABASE_URL = "https://dmlpacanmmccpikaysvm.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtbHBhY2FubW1jY3Bpa2F5c3ZtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDczOTM4MiwiZXhwIjoyMDY2MzE1MzgyfQ.MunOBNULJDpd3VTQGuPNG5JAPcB6Qu7qY7VLyEEQbi8";
-        
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let SUPABASE_URL = '';
+        let SUPABASE_KEY = '';
+        let map = null;
+        let layers = {};
+        let legend = null;
+        let sidebarCollapsed = false;
+        const PAGE_SIZE = 1000;
 
-        // Coordenadas de Santo Domingo de los Tsáchilas, Ecuador
-        const santoDomingoCoords = [-0.252, -79.175];
-        
-        // Inicializar el mapa centrado en Santo Domingo
-        const map = L.map('map').setView(santoDomingoCoords, 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        
-        const emergencyLayer = L.layerGroup().addTo(map);
+        // Configuración de capas
+        const TABLE_COLORS = {
+            'camaras-sdt': '#FF4136',
+            'gis_addressname': '#2ECC40',
+            'gis_poi': '#FFDC00',
+            'road_sdt': '#0074D9',
+            'subcircuitoswgs84': '#B10DC9'
+        };
 
-        // Variables para paginación
-        let currentPage = 1;
-        const itemsPerPage = 10;
-        let totalItems = 0;
+        const DISPLAY_NAMES = {
+            'camaras-sdt': 'Cámaras SDT',
+            'gis_addressname': 'Direcciones',
+            'gis_poi': 'Puntos de Interés',
+            'road_sdt': 'Red Vial',
+            'subcircuitoswgs84': 'Subcircuitos'
+        };
 
-        // Función para cargar emergencias desde Supabase
-        async function loadEmergencies(filters = {}) {
-            try {
-                showLoading(true);
-                
-                let query = supabase
-                    .from('alertas_emergencia')
-                    .select('*', { count: 'exact' });
-                
-                // Aplicar filtros
-                if (filters.type && filters.type !== 'all') {
-                    query = query.eq('tipo', filters.type);
-                }
-                
-                if (filters.priority && filters.priority !== 'all') {
-                    query = query.eq('prioridad', filters.priority);
-                }
-                
-                if (filters.startDate && filters.endDate) {
-                    query = query.gte('fecha_hora', filters.startDate)
-                               .lte('fecha_hora', filters.endDate);
-                }
-                
-                const { data, error, count } = await query;
-                
-                if (error) throw error;
-                
-                return {
-                    data: data || [],
-                    total: count || 0
-                };
-            } catch (error) {
-                console.error('Error al cargar emergencias:', error);
-                alert('Error al cargar datos. Ver consola para detalles.');
-                return { data: [], total: 0 };
-            } finally {
-                showLoading(false);
+        const LAYER_ICONS = {
+            'camaras-sdt': 'fas fa-video',
+            'gis_addressname': 'fas fa-map-marker-alt',
+            'gis_poi': 'fas fa-star',
+            'road_sdt': 'fas fa-road',
+            'subcircuitoswgs84': 'fas fa-project-diagram'
+        };
+
+        const TABLE_STYLES = {
+            'camaras-sdt': {
+                point: { radius: 6, fillColor: '#FF4136', color: '#fff', weight: 2, fillOpacity: 0.8 },
+                line: { color: '#FF4136', weight: 3, opacity: 0.8 },
+                polygon: { color: '#FF4136', weight: 2, opacity: 0.8, fillOpacity: 0.4 }
+            },
+            'gis_addressname': {
+                point: { radius: 5, fillColor: '#2ECC40', color: '#fff', weight: 2, fillOpacity: 0.8 },
+                line: { color: '#2ECC40', weight: 2, opacity: 0.8 },
+                polygon: { color: '#2ECC40', weight: 2, opacity: 0.8, fillOpacity: 0.4 }
+            },
+            'gis_poi': {
+                point: { radius: 7, fillColor: '#FFDC00', color: '#333', weight: 2, fillOpacity: 0.9 },
+                line: { color: '#FFDC00', weight: 3, opacity: 0.8 },
+                polygon: { color: '#FFDC00', weight: 2, opacity: 0.8, fillOpacity: 0.4 }
+            },
+            'road_sdt': {
+                point: { radius: 4, fillColor: '#0074D9', color: '#fff', weight: 2, fillOpacity: 0.8 },
+                line: { color: '#0074D9', weight: 4, opacity: 0.8 },
+                polygon: { color: '#0074D9', weight: 2, opacity: 0.8, fillOpacity: 0.4 }
+            },
+            'subcircuitoswgs84': {
+                point: { radius: 5, fillColor: '#B10DC9', color: '#fff', weight: 2, fillOpacity: 0.8 },
+                line: { color: '#B10DC9', weight: 2, opacity: 0.8 },
+                polygon: { color: '#B10DC9', weight: 2, opacity: 0.8, fillOpacity: 0.4 }
+            }
+        };
+
+        // Funciones de UI
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebarCollapsed = !sidebarCollapsed;
+            sidebar.classList.toggle('collapsed', sidebarCollapsed);
+        }
+
+        function updateStatus(message, isConnected = false, isError = false) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            statusText.textContent = message;
+            statusDot.className = 'status-dot';
+            
+            if (isError) {
+                statusDot.style.background = '#dc3545';
+            } else if (isConnected) {
+                statusDot.classList.add('connected');
             }
         }
 
-        // Función para mostrar emergencias en el mapa
-        function plotEmergencies(data) {
-            emergencyLayer.clearLayers();
+        function updateProgress(percent) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progress = document.getElementById('progress');
             
-            data.forEach(emergency => {
-                const marker = L.circleMarker([emergency.latitud, emergency.longitud], {
-                    radius: 8,
-                    fillColor: getColorByType(emergency.tipo),
-                    color: "#000",
-                    weight: 1,
-                    opacity: 1,
-                    fillOpacity: 0.8
-                }).addTo(emergencyLayer);
+            if (percent > 0) {
+                progressContainer.style.display = 'block';
+                progress.style.width = `${percent}%`;
+            } else {
+                progressContainer.style.display = 'none';
+            }
+        }
+
+        function showFeatureInfo(content) {
+            const featureInfo = document.getElementById('featureInfo');
+            const featureContent = document.getElementById('featureContent');
+            
+            featureContent.innerHTML = content;
+            featureInfo.classList.add('show');
+        }
+
+        function closeFeatureInfo() {
+            const featureInfo = document.getElementById('featureInfo');
+            featureInfo.classList.remove('show');
+        }
+
+        function zoomToAll() {
+            const bounds = new L.LatLngBounds();
+            let hasValidBounds = false;
+            
+            for (const tableName in layers) {
+                if (layers[tableName].added) {
+                    const layer = layers[tableName];
+                    if (layer.markers?.getLayers().length > 0) {
+                        bounds.extend(layer.markers.getBounds());
+                        hasValidBounds = true;
+                    }
+                    if (layer.lines?.getLayers().length > 0) {
+                        bounds.extend(layer.lines.getBounds());
+                        hasValidBounds = true;
+                    }
+                    if (layer.polygons?.getLayers().length > 0) {
+                        bounds.extend(layer.polygons.getBounds());
+                        hasValidBounds = true;
+                    }
+                }
+            }
+            
+            if (hasValidBounds) {
+                map.fitBounds(bounds);
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Funciones principales
+        async function connect() {
+            SUPABASE_URL = document.getElementById('supabaseUrl').value.trim();
+            SUPABASE_KEY = document.getElementById('supabaseKey').value.trim();
+            
+            if (!SUPABASE_URL || !SUPABASE_KEY) {
+                updateStatus('Ingrese URL y API Key', false, true);
+                return;
+            }
+            
+            updateStatus('Conectando...', false);
+            updateProgress(0);
+            
+            try {
+                const ping = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+                    headers: { 
+                        apikey: SUPABASE_KEY, 
+                        Authorization: `Bearer ${SUPABASE_KEY}` 
+                    },
+                });
                 
-                marker.bindPopup(`
-                    <b>Tipo:</b> ${emergency.tipo}<br>
-                    <b>Fecha:</b> ${formatDate(emergency.fecha_hora)}<br>
-                    <b>Dirección:</b> ${emergency.direccion || 'No especificada'}<br>
-                    <b>Prioridad:</b> ${emergency.prioridad}<br>
-                    <b>Descripción:</b> ${emergency.descripcion || 'Sin descripción'}
-                `);
-            });
-            
-            updateStatistics(data);
-            updateTableWithPagination(data);
+                if (!ping.ok) throw new Error('Error de conexión');
+                
+                updateStatus('Conectado - Cargando capas...', true);
+                initMap();
+                await loadAllTables();
+                
+            } catch (err) {
+                updateStatus(err.message, false, true);
+                console.error(err);
+            } finally {
+                updateProgress(0);
+            }
         }
 
-        // Función para formatear fecha
-        function formatDate(dateString) {
-            const options = { 
-                year: 'numeric', 
-                month: '2-digit', 
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
+        function initMap() {
+            map = L.map('map').setView([-0.2542, -79.1719], 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Inicializar leyenda
+            legend = L.control({position: 'bottomright'});
+            legend.onAdd = function(map) {
+                const div = L.DomUtil.create('div', 'legend');
+                div.innerHTML = '<h4>Leyenda</h4>';
+                return div;
             };
-            return new Date(dateString).toLocaleString('es-EC', options);
+            legend.addTo(map);
         }
 
-        // Función para obtener color según tipo de emergencia
-        function getColorByType(type) {
-            const colors = {
-                'incendio': '#ff4000',
-                'accidente': '#ffff00',
-                'robo': '#ff0000',
-                'violencia': '#800080',
-                'medica': '#0000ff',
-                'natural': '#00aa00',
-                'otro': '#808080'
-            };
-            return colors[type.toLowerCase()] || '#808080';
+        async function loadAllTables() {
+            const tablesToLoad = [
+                'camaras-sdt',
+                'gis_addressname',
+                'gis_poi',
+                'road_sdt',
+                'subcircuitoswgs84'
+            ];
+            
+            let loadedCount = 0;
+            const totalTables = tablesToLoad.length;
+            
+            await Promise.all(tablesToLoad.map(async (tableName) => {
+                try {
+                    await loadGeoData(tableName);
+                    loadedCount++;
+                    updateProgress((loadedCount / totalTables) * 100);
+                } catch (err) {
+                    console.error(`Error cargando ${tableName}:`, err);
+                }
+            }));
+            
+            updateStatus(`${loadedCount} capas cargadas`, true);
+            updateLayersList();
+            updateLegend();
+            zoomToAll();
         }
 
-        // Función para actualizar estadísticas
-        function updateStatistics(data) {
-            $('#totalEmergencies').text(data.length);
+        async function loadGeoData(tableName) {
+            try {
+                const markersCluster = L.markerClusterGroup({
+                    spiderfyOnMaxZoom: true,
+                    showCoverageOnHover: false,
+                    zoomToBoundsOnClick: true,
+                    maxClusterRadius: 40
+                });
+                
+                const linesLayer = L.geoJSON(null, {
+                    style: TABLE_STYLES[tableName]?.line || { color: '#3388ff', weight: 2 }
+                });
+                
+                const polygonsLayer = L.geoJSON(null, {
+                    style: TABLE_STYLES[tableName]?.polygon || { color: '#3388ff', weight: 2, fillOpacity: 0.4 }
+                });
+                
+                let totalCount = 0;
+                let offset = 0;
+                let hasMoreData = true;
+                
+                const createPopupContent = (tableName, properties) => {
+                    let content = `<div style="max-width: 300px;">`;
+                    content += `<h4 style="color: ${TABLE_COLORS[tableName]}; margin-bottom: 10px;">`;
+                    content += `<i class="${LAYER_ICONS[tableName]}"></i> ${DISPLAY_NAMES[tableName]}</h4>`;
+                    
+                    for (const prop in properties) {
+                        if (prop !== 'geom' && properties[prop] !== null && properties[prop] !== '') {
+                            content += `<p><strong>${prop}:</strong> ${properties[prop]}</p>`;
+                        }
+                    }
+                    content += `</div>`;
+                    return content;
+                };
+                
+                while (hasMoreData) {
+                    const geoRes = await fetch(
+                        `${SUPABASE_URL}/rest/v1/${tableName}?select=*&offset=${offset}&limit=${PAGE_SIZE}`, {
+                        headers: {
+                            apikey: SUPABASE_KEY,
+                            Authorization: `Bearer ${SUPABASE_KEY}`,
+                        },
+                    });
+                    
+                    if (!geoRes.ok) throw new Error(`Error al obtener datos de ${tableName}`);
+                    const geoData = await geoRes.json();
+                    
+                    if (geoData.length === 0) {
+                        hasMoreData = false;
+                        break;
+                    }
+                    
+                    geoData.forEach(item => {
+                        if (item.geom) {
+                            try {
+                                const geometry = typeof item.geom === 'string' ? JSON.parse(item.geom) : item.geom;
+                                const feature = {
+                                    type: 'Feature',
+                                    properties: item,
+                                    geometry: geometry
+                                };
+                                
+                                const popupContent = createPopupContent(tableName, item);
+                                
+                                if (geometry.type === 'Point' || geometry.type === 'MultiPoint') {
+                                    const marker = L.circleMarker(
+                                        [geometry.coordinates[1], geometry.coordinates[0]], 
+                                        TABLE_STYLES[tableName]?.point || {
+                                            radius: 5, 
+                                            fillColor: '#3388ff',
+                                            color: '#fff',
+                                            weight: 1,
+                                            opacity: 1,
+                                            fillOpacity: 0.8
+                                        }
+                                    );
+                                    
+                                    marker.bindPopup(popupContent);
+                                    marker.on('click', () => showFeatureInfo(popupContent));
+                                    markersCluster.addLayer(marker);
+                                } 
+                                else if (geometry.type === 'LineString' || geometry.type === 'MultiLineString') {
+                                    const layer = L.geoJSON(feature, {
+                                        style: TABLE_STYLES[tableName]?.line || { color: '#3388ff', weight: 2 }
+                                    });
+                                    
+                                    layer.eachLayer(l => {
+                                        l.bindPopup(popupContent);
+                                        l.on('click', () => showFeatureInfo(popupContent));
+                                    });
+                                    
+                                    linesLayer.addData(feature);
+                                }
+                                else if (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon') {
+                                    const layer = L.geoJSON(feature, {
+                                        style: TABLE_STYLES[tableName]?.polygon || { color: '#3388ff', weight: 2, fillOpacity: 0.4 }
+                                    });
+                                    
+                                    layer.eachLayer(l => {
+                                        l.bindPopup(popupContent);
+                                        l.on('click', () => showFeatureInfo(popupContent));
+                                    });
+                                    
+                                    polygonsLayer.addData(feature);
+                                }
+                                
+                                totalCount++;
+                            } catch (e) {
+                                console.error(`Error procesando geometría en ${tableName}:`, e);
+                            }
+                        }
+                    });
+                    
+                    offset += PAGE_SIZE;
+                }
+                
+                const layerGroup = L.layerGroup([markersCluster, linesLayer, polygonsLayer]);
+                
+                layers[tableName] = {
+                    layer: layerGroup,
+                    added: true,
+                    count: totalCount,
+                    markers: markersCluster,
+                    lines: linesLayer,
+                    polygons: polygonsLayer
+                };
+                
+                map.addLayer(layerGroup);
+                
+                return true;
+                
+            } catch (err) {
+                console.error(`Error cargando ${tableName}:`, err);
+                throw err;
+            }
+        }
+
+        function updateLayersList() {
+            const layersList = document.getElementById('layersList');
+            layersList.innerHTML = '';
             
-            const typeCount = {};
-            data.forEach(emergency => {
-                typeCount[emergency.tipo] = (typeCount[emergency.tipo] || 0) + 1;
-            });
-            
-            let distributionHtml = '';
-            for (const [type, count] of Object.entries(typeCount)) {
-                const percentage = (count / data.length * 100).toFixed(1);
-                distributionHtml += `
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>${type}</span>
-                        <span>${count} (${percentage}%)</span>
-                    </div>
-                    <div class="progress mb-2" style="height: 5px;">
-                        <div class="progress-bar" role="progressbar" 
-                             style="width: ${percentage}%; background-color: ${getColorByType(type)};">
+            for (const tableName in layers) {
+                const layer = layers[tableName];
+                
+                const layerItem = document.createElement('div');
+                layerItem.className = 'layer-item';
+                if (layer.added) layerItem.classList.add('active');
+                
+                layerItem.innerHTML = `
+                    <div class="layer-header">
+                        <input type="checkbox" class="layer-toggle" ${layer.added ? 'checked' : ''} 
+                               onchange="toggleLayer('${tableName}', this.checked)">
+                        <div class="layer-color" style="background-color: ${TABLE_COLORS[tableName]}"></div>
+                        <div class="layer-name">${DISPLAY_NAMES[tableName]}</div>
+                        <div class="layer-actions">
+                            <button class="layer-btn" onclick="zoomToLayer('${tableName}')" title="Zoom a capa">
+                                <i class="fas fa-search-plus"></i>
+                            </button>
                         </div>
                     </div>
+                    <div class="layer-info">
+                        <span class="feature-count">${layer.count.toLocaleString()} elementos</span>
+                        <i class="${LAYER_ICONS[tableName]}"></i>
+                    </div>
                 `;
-            }
-            
-            $('#typeDistribution').html(distributionHtml);
-        }
-
-        // Función para actualizar tabla con paginación
-        function updateTableWithPagination(data) {
-            const startIndex = (currentPage - 1) * itemsPerPage;
-            const endIndex = startIndex + itemsPerPage;
-            const paginatedData = data.slice(startIndex, endIndex);
-            
-            const tableBody = $('#emergencyTable tbody');
-            tableBody.empty();
-            
-            paginatedData.forEach(emergency => {
-                const row = `
-                    <tr>
-                        <td>${emergency.id}</td>
-                        <td><span class="badge" style="background-color: ${getColorByType(emergency.tipo)}">${emergency.tipo}</span></td>
-                        <td>${formatDate(emergency.fecha_hora)}</td>
-                        <td>${emergency.direccion || 'No especificada'}</td>
-                        <td>
-                            ${emergency.prioridad === 'alta' ? '<span class="badge bg-danger">Alta</span>' : 
-                              emergency.prioridad === 'media' ? '<span class="badge bg-warning text-dark">Media</span>' : 
-                              '<span class="badge bg-secondary">Baja</span>'}
-                        </td>
-                        <td>${emergency.descripcion || 'Sin descripción'}</td>
-                    </tr>
-                `;
-                tableBody.append(row);
-            });
-            
-            updatePagination(data.length);
-        }
-
-        // Función para actualizar paginación
-        function updatePagination(total) {
-            const totalPages = Math.ceil(total / itemsPerPage);
-            const pagination = $('#pagination');
-            pagination.empty();
-            
-            // Botón Anterior
-            pagination.append(`
-                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-                    <a class="page-link" href="#" data-page="${currentPage - 1}">Anterior</a>
-                </li>
-            `);
-            
-            // Números de página
-            for (let i = 1; i <= totalPages; i++) {
-                pagination.append(`
-                    <li class="page-item ${i === currentPage ? 'active' : ''}">
-                        <a class="page-link" href="#" data-page="${i}">${i}</a>
-                    </li>
-                `);
-            }
-            
-            // Botón Siguiente
-            pagination.append(`
-                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-                    <a class="page-link" href="#" data-page="${currentPage + 1}">Siguiente</a>
-                </li>
-            `);
-        }
-
-        // Función para cargar tipos de emergencia disponibles
-        async function loadEmergencyTypes() {
-            try {
-                const { data, error } = await supabase
-                    .from('alertas_emergencia')
-                    .select('tipo')
-                    .not('tipo', 'is', null);
                 
-                if (error) throw error;
-                
-                const uniqueTypes = [...new Set(data.map(item => item.tipo))];
-                const typeSelect = $('#emergencyType');
-                
-                uniqueTypes.forEach(type => {
-                    typeSelect.append(`<option value="${type}">${type}</option>`);
-                });
-            } catch (error) {
-                console.error('Error al cargar tipos:', error);
+                layersList.appendChild(layerItem);
             }
         }
 
-        // Función para mostrar/ocultar carga
-        function showLoading(show) {
-            if (show) {
-                $('#filterText').hide();
-                $('#filterLoading').show();
-                $('#applyFilters').prop('disabled', true);
+        function toggleLayer(tableName, visible) {
+            const layer = layers[tableName];
+            if (!layer) return;
+            
+            if (visible) {
+                map.addLayer(layer.layer);
+                layers[tableName].added = true;
             } else {
-                $('#filterText').show();
-                $('#filterLoading').hide();
-                $('#applyFilters').prop('disabled', false);
+                map.removeLayer(layer.layer);
+                layers[tableName].added = false;
+            }
+            
+            updateLayersList();
+            updateLegend();
+        }
+
+        function zoomToLayer(tableName) {
+            const layer = layers[tableName];
+            if (!layer) return;
+            
+            const bounds = new L.LatLngBounds();
+            let hasBounds = false;
+            
+            if (layer.markers?.getLayers().length > 0) {
+                bounds.extend(layer.markers.getBounds());
+                hasBounds = true;
+            }
+            if (layer.lines?.getLayers().length > 0) {
+                bounds.extend(layer.lines.getBounds());
+                hasBounds = true;
+            }
+            if (layer.polygons?.getLayers().length > 0) {
+                bounds.extend(layer.polygons.getBounds());
+                hasBounds = true;
+            }
+            
+            if (hasBounds) {
+                map.fitBounds(bounds);
             }
         }
 
-        // Función para obtener filtros actuales
-        function getCurrentFilters() {
-            return {
-                type: $('#emergencyType').val(),
-                priority: $('#priority').val(),
-                timeRange: $('#timeRange').val(),
-                startDate: $('#startDate').val(),
-                endDate: $('#endDate').val()
-            };
-        }
-
-        // Función para aplicar filtros de hora
-        function applyTimeFilter(data, timeRange) {
-            if (timeRange === 'all') return data;
+        function updateLegend() {
+            const legendDiv = document.querySelector('.legend');
+            if (!legendDiv) return;
             
-            return data.filter(emergency => {
-                const hour = new Date(emergency.fecha_hora).getHours();
-                
-                switch(timeRange) {
-                    case 'morning': return hour >= 6 && hour < 12;
-                    case 'afternoon': return hour >= 12 && hour < 18;
-                    case 'evening': return hour >= 18 && hour < 24;
-                    case 'late-night': return hour >= 0 && hour < 6;
-                    default: return true;
+            let legendHTML = '<h4>Leyenda</h4>';
+            
+            for (const tableName in layers) {
+                if (layers[tableName].added) {
+                    legendHTML += `
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: ${TABLE_COLORS[tableName]}"></div>
+                            <span>${DISPLAY_NAMES[tableName]} (${layers[tableName].count.toLocaleString()})</span>
+                        </div>
+                    `;
                 }
-            });
+            }
+            
+            legendDiv.innerHTML = legendHTML;
         }
 
-        // Eventos
-        $(document).ready(async function() {
-            // Configurar fechas por defecto (últimos 30 días)
-            const today = new Date();
-            const lastMonth = new Date();
-            lastMonth.setDate(today.getDate() - 30);
-            
-            $('#startDate').val(lastMonth.toISOString().split('T')[0]);
-            $('#endDate').val(today.toISOString().split('T')[0]);
-            
-            // Cargar tipos de emergencia
-            await loadEmergencyTypes();
-            
-            // Carga inicial de datos
-            const { data } = await loadEmergencies();
-            const filteredData = applyTimeFilter(data, 'all');
-            plotEmergencies(filteredData);
-            
-            // Aplicar filtros
-            $('#applyFilters').click(async function() {
-                const filters = getCurrentFilters();
-                const { data } = await loadEmergencies(filters);
-                const filteredData = applyTimeFilter(data, filters.timeRange);
-                currentPage = 1;
-                plotEmergencies(filteredData);
-            });
-            
-            // Restablecer filtros
-            $('#resetFilters').click(function() {
-                $('#emergencyType').val('all');
-                $('#priority').val('all');
-                $('#timeRange').val('all');
-                
-                const today = new Date();
-                const lastMonth = new Date();
-                lastMonth.setDate(today.getDate() - 30);
-                
-                $('#startDate').val(lastMonth.toISOString().split('T')[0]);
-                $('#endDate').val(today.toISOString().split('T')[0]);
-                
-                loadEmergencies().then(({ data }) => {
-                    currentPage = 1;
-                    plotEmergencies(data);
-                });
-            });
-            
-            // Manejar paginación
-            $(document).on('click', '.page-link', function(e) {
-                e.preventDefault();
-                currentPage = parseInt($(this).data('page'));
-                updateTableWithPagination(window.currentData || []);
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            // Permitir conectar con Enter
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    connect();
+                }
             });
         });
-
-        // Añadir leyenda al mapa
-        const legend = L.control({position: 'bottomright'});
-        legend.onAdd = function(map) {
-            const div = L.DomUtil.create('div', 'legend');
-            const types = {
-                'incendio': 'Incendio',
-                'accidente': 'Accidente',
-                'robo': 'Robo',
-                'violencia': 'Violencia',
-                'medica': 'Emergencia Médica',
-                'natural': 'Desastre Natural',
-                'otro': 'Otro'
-            };
-            
-            div.innerHTML = '<h6>Leyenda</h6>';
-            
-            for (const [type, label] of Object.entries(types)) {
-                div.innerHTML += 
-                    `<i style="background:${getColorByType(type)}"></i> ${label}<br>`;
-            }
-            
-            return div;
-        };
-        legend.addTo(map);
     </script>
 </body>
 </html>
