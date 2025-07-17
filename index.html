@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geoportal SDT - Sistema de Información Geográfica</title>
+    <title>Geoportal ECU 911 SD - Sistema de Información Geográfica</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Leaflet Label CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.label@0.2.1/dist/leaflet.label.css" />
     
     <style>
         * {
@@ -29,7 +31,7 @@
 
         /* Header */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #ff4d4d 0%, #d12222 100%);
             color: white;
             padding: 15px 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -76,26 +78,6 @@
             padding: 8px 15px;
             border-radius: 25px;
             backdrop-filter: blur(10px);
-        }
-
-        .connection-panel input {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            width: 200px;
-        }
-
-        .connection-panel input::placeholder {
-            color: rgba(255,255,255,0.7);
-        }
-
-        .connection-panel input:focus {
-            outline: none;
-            border-color: rgba(255,255,255,0.5);
-            background: rgba(255,255,255,0.3);
         }
 
         .btn-connect {
@@ -434,10 +416,6 @@
                 justify-content: center;
             }
 
-            .connection-panel input {
-                width: 150px;
-            }
-
             .sidebar {
                 width: 280px;
             }
@@ -466,25 +444,75 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Filtro de búsqueda */
+        .search-filter {
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .search-filter input {
+            width: 100%;
+            padding: 8px 15px;
+            border: 1px solid #e0e6ed;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-filter input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .search-filter i {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+
+        /* Estilos para etiquetas de subcircuitos */
+        .leaflet-label {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 8px;
+            font-weight: bold;
+            white-space: nowrap;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <!-- Header -->
+  
+  <!-- Header -->
     <div class="header">
         <div class="header-content">
-            <div class="logo">
-                <i class="fas fa-globe-americas"></i>
-                <div>
-                    <h1>Geoportal SDT</h1>
-                    <div class="subtitle">Sistema de Información Geográfica</div>
-                </div>
-            </div>
+        
+
+<div class="logo">
+    <img src="https://ecu-9-1-1.github.io/Geoportal/LOGO911.png" 
+         alt="Logo ECU911" 
+         class="logo-image"> <!-- IMAGEN NUEVA -->
+    <div>
+        <h1>Geoportal ECU 911 Santo Domingo</h1>
+        <div class="subtitle">Sistema de Información Geográfica</div>
+    </div>
+</div>
+
+
             <div class="connection-panel">
-                <input type="text" id="supabaseUrl" placeholder="Supabase URL" />
-                <input type="password" id="supabaseKey" placeholder="API Key" />
-                <button class="btn-connect" onclick="connect()">
-                    <i class="fas fa-plug"></i> Conectar
-                </button>
+
+
+               
+
+</button>
+
+
             </div>
         </div>
     </div>
@@ -507,7 +535,7 @@
             </div>
             <div class="sidebar-content">
                 <div class="layer-section">
-                    <h4><i class="fas fa-layer-group"></i> Capas Disponibles</h4>
+                    <h4><i class="fas fa-layer-group"></i> Buscador / Capas </h4>
                     <div id="layersList">
                         <div class="loading" id="loadingLayers">
                             <i class="fas fa-spinner"></i>
@@ -553,10 +581,14 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
-
+    <script src="https://unpkg.com/leaflet.label@0.2.1/dist/leaflet.label.js"></script>
     <script>
-        let SUPABASE_URL = '';
-        let SUPABASE_KEY = '';
+        // Credenciales hardcodeadas
+        const SUPABASE_CONFIG = {
+            URL: 'https://dmlpacanmmccpikaysvm.supabase.co',
+            KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtbHBhY2FubW1jY3Bpa2F5c3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3MzkzODIsImV4cCI6MjA2NjMxNTM4Mn0.fVyKGoier5nOuNHuaOvgtcnf0OxJvPo6jvbK80jtBQU'
+        };
+
         let map = null;
         let layers = {};
         let legend = null;
@@ -573,7 +605,7 @@
         };
 
         const DISPLAY_NAMES = {
-            'camaras-sdt': 'Cámaras SDT',
+            'camaras-sdt': 'Cámaras SD',
             'gis_addressname': 'Direcciones',
             'gis_poi': 'Puntos de Interés',
             'road_sdt': 'Red Vial',
@@ -587,6 +619,14 @@
             'road_sdt': 'fas fa-road',
             'subcircuitoswgs84': 'fas fa-project-diagram'
         };
+
+        // Paleta de colores para subcircuitos
+        const SUBCIRCUIT_COLORS = [
+            '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+            '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+            '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5',
+            '#c49c94', '#f7b6d2', '#c7c7c7', '#dbdb8d', '#9edae5'
+        ];
 
         const TABLE_STYLES = {
             'camaras-sdt': {
@@ -605,14 +645,14 @@
                 polygon: { color: '#FFDC00', weight: 2, opacity: 0.8, fillOpacity: 0.4 }
             },
             'road_sdt': {
-                point: { radius: 4, fillColor: '#0074D9', color: '#fff', weight: 2, fillOpacity: 0.8 },
-                line: { color: '#0074D9', weight: 4, opacity: 0.8 },
-                polygon: { color: '#0074D9', weight: 2, opacity: 0.8, fillOpacity: 0.4 }
+                point: { radius: 4, fillColor: '#0074D9', color: '#fff', weight: 1, fillOpacity: 0.8 },
+                line: { color: '#0074D9', weight: 1, opacity: 0.8 },
+                polygon: { color: '#0074D9', weight: 1, opacity: 0.8, fillOpacity: 0.4 }
             },
             'subcircuitoswgs84': {
-                point: { radius: 5, fillColor: '#B10DC9', color: '#fff', weight: 2, fillOpacity: 0.8 },
-                line: { color: '#B10DC9', weight: 2, opacity: 0.8 },
-                polygon: { color: '#B10DC9', weight: 2, opacity: 0.8, fillOpacity: 0.4 }
+                point: { radius: 5, fillColor: '#B10DC9', color: '#fff', weight: 1.5, fillOpacity: 0.8 },
+                line: { color: '#B10DC9', weight: 1.5, opacity: 0.8 },
+                polygon: { color: '#B10DC9', weight: 1.5, opacity: 0.9, fillOpacity: 0.3 }
             }
         };
 
@@ -699,22 +739,14 @@
 
         // Funciones principales
         async function connect() {
-            SUPABASE_URL = document.getElementById('supabaseUrl').value.trim();
-            SUPABASE_KEY = document.getElementById('supabaseKey').value.trim();
-            
-            if (!SUPABASE_URL || !SUPABASE_KEY) {
-                updateStatus('Ingrese URL y API Key', false, true);
-                return;
-            }
-            
             updateStatus('Conectando...', false);
             updateProgress(0);
             
             try {
-                const ping = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+                const ping = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/`, {
                     headers: { 
-                        apikey: SUPABASE_KEY, 
-                        Authorization: `Bearer ${SUPABASE_KEY}` 
+                        apikey: SUPABASE_CONFIG.KEY, 
+                        Authorization: `Bearer ${SUPABASE_CONFIG.KEY}` 
                     },
                 });
                 
@@ -798,26 +830,52 @@
                 let offset = 0;
                 let hasMoreData = true;
                 
+                // Función especial para crear popup de subcircuitos
                 const createPopupContent = (tableName, properties) => {
                     let content = `<div style="max-width: 300px;">`;
                     content += `<h4 style="color: ${TABLE_COLORS[tableName]}; margin-bottom: 10px;">`;
                     content += `<i class="${LAYER_ICONS[tableName]}"></i> ${DISPLAY_NAMES[tableName]}</h4>`;
                     
-                    for (const prop in properties) {
-                        if (prop !== 'geom' && properties[prop] !== null && properties[prop] !== '') {
-                            content += `<p><strong>${prop}:</strong> ${properties[prop]}</p>`;
+                    if (tableName === 'subcircuitoswgs84') {
+                        // Contenido especial para subcircuitos
+                        content += `<p><strong>Subcircuito:</strong> ${properties.nam_subcir || 'No disponible'}</p>`;
+                        content += `<p><strong>Circuito:</strong> ${properties.nam_circui || 'No disponible'}</p>`;
+                        content += `<p><strong>Parroquia:</strong> ${properties.dpa_despro || 'No disponible'}</p>`;
+                        content += `<p><strong>Distrito:</strong> ${properties.nam_distri || 'No disponible'}</p>`;
+                        content += `<p><strong>Provincia:</strong> ${properties.dpa_descan || 'No disponible'}</p>`;
+                    } else {
+                        // Contenido genérico para otras capas
+                        for (const prop in properties) {
+                            if (prop !== 'geom' && properties[prop] !== null && properties[prop] !== '') {
+                                content += `<p><strong>${prop}:</strong> ${properties[prop]}</p>`;
+                            }
                         }
                     }
                     content += `</div>`;
                     return content;
                 };
                 
+                // Función para obtener color basado en el nombre del subcircuito
+                const getSubcircuitColor = (name) => {
+                    if (!name) return TABLE_COLORS['subcircuitoswgs84'];
+                    
+                    // Generar un hash simple del nombre para seleccionar un color consistente
+                    let hash = 0;
+                    for (let i = 0; i < name.length; i++) {
+                        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                    }
+                    
+                    // Usar el valor absoluto del hash para seleccionar un color
+                    const index = Math.abs(hash) % SUBCIRCUIT_COLORS.length;
+                    return SUBCIRCUIT_COLORS[index];
+                };
+                
                 while (hasMoreData) {
                     const geoRes = await fetch(
-                        `${SUPABASE_URL}/rest/v1/${tableName}?select=*&offset=${offset}&limit=${PAGE_SIZE}`, {
+                        `${SUPABASE_CONFIG.URL}/rest/v1/${tableName}?select=*&offset=${offset}&limit=${PAGE_SIZE}`, {
                         headers: {
-                            apikey: SUPABASE_KEY,
-                            Authorization: `Bearer ${SUPABASE_KEY}`,
+                            apikey: SUPABASE_CONFIG.KEY,
+                            Authorization: `Bearer ${SUPABASE_CONFIG.KEY}`,
                         },
                     });
                     
@@ -854,6 +912,9 @@
                                         }
                                     );
                                     
+                                    // Almacenar el marcador original para filtrado
+                                    marker.feature = feature;
+                                    
                                     marker.bindPopup(popupContent);
                                     marker.on('click', () => showFeatureInfo(popupContent));
                                     markersCluster.addLayer(marker);
@@ -864,6 +925,7 @@
                                     });
                                     
                                     layer.eachLayer(l => {
+                                        l.feature = feature;
                                         l.bindPopup(popupContent);
                                         l.on('click', () => showFeatureInfo(popupContent));
                                     });
@@ -871,13 +933,79 @@
                                     linesLayer.addData(feature);
                                 }
                                 else if (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon') {
-                                    const layer = L.geoJSON(feature, {
-                                        style: TABLE_STYLES[tableName]?.polygon || { color: '#3388ff', weight: 2, fillOpacity: 0.4 }
-                                    });
+                                    let style = TABLE_STYLES[tableName]?.polygon || { 
+                                        color: '#3388ff', 
+                                        weight: 2, 
+                                        fillOpacity: 0.4 
+                                    };
+                                    
+                                    // Estilo especial para subcircuitos
+                                    if (tableName === 'subcircuitoswgs84') {
+                                        const subcircuitColor = getSubcircuitColor(item.nam_subcir);
+                                        style = {
+                                            color: subcircuitColor,
+                                            weight: 3,
+                                            opacity: 0.9,
+                                            fillColor: subcircuitColor,
+                                            fillOpacity: 0.3
+                                        };
+                                    }
+                                    
+                                    const layer = L.geoJSON(feature, { style });
                                     
                                     layer.eachLayer(l => {
+                                        l.feature = feature;
                                         l.bindPopup(popupContent);
                                         l.on('click', () => showFeatureInfo(popupContent));
+                                        
+                                        // Agregar etiqueta para subcircuitos
+                                        if (tableName === 'subcircuitoswgs84' && item.nam_subcir) {
+                                            // Calcular el centroide del polígono para colocar la etiqueta
+                                            let center;
+                                            if (geometry.type === 'Polygon') {
+                                                center = turf.centroid(feature).geometry.coordinates;
+                                            } else if (geometry.type === 'MultiPolygon') {
+                                                // Para MultiPolygon, usar el primer polígono
+                                                const firstPolygon = {
+                                                    type: 'Feature',
+                                                    properties: {},
+                                                    geometry: {
+                                                        type: 'Polygon',
+                                                        coordinates: geometry.coordinates[0]
+                                                    }
+                                                };
+                                                center = turf.centroid(firstPolygon).geometry.coordinates;
+                                            }
+                                            
+                                            if (center) {
+                                                // Mostrar etiqueta solo cuando el zoom sea suficiente
+                                                const label = L.marker([center[1], center[0]], {
+                                                    icon: L.divIcon({
+                                                        className: 'subcircuit-label',
+                                                        html: `<div>${item.nam_subcir}</div>`,
+                                                        iconSize: [0, 0] // Sin icono, solo texto
+                                                    }),
+                                                    interactive: false,
+                                                    zIndexOffset: -1000
+                                                }).addTo(map);
+                                                
+                                                // Controlar visibilidad basada en el zoom
+                                                const updateLabelVisibility = () => {
+                                                    const zoom = map.getZoom();
+                                                    if (zoom >= 12) {
+                                                        label.getElement().style.display = 'block';
+                                                    } else {
+                                                        label.getElement().style.display = 'none';
+                                                    }
+                                                };
+                                                
+                                                updateLabelVisibility();
+                                                map.on('zoomend', updateLabelVisibility);
+                                                
+                                                // Guardar referencia a la etiqueta para poder eliminarla luego
+                                                l.label = label;
+                                            }
+                                        }
                                     });
                                     
                                     polygonsLayer.addData(feature);
@@ -901,7 +1029,10 @@
                     count: totalCount,
                     markers: markersCluster,
                     lines: linesLayer,
-                    polygons: polygonsLayer
+                    polygons: polygonsLayer,
+                    allMarkers: markersCluster.getLayers(),
+                    allLines: linesLayer.getLayers(),
+                    allPolygons: polygonsLayer.getLayers()
                 };
                 
                 map.addLayer(layerGroup);
@@ -917,6 +1048,42 @@
         function updateLayersList() {
             const layersList = document.getElementById('layersList');
             layersList.innerHTML = '';
+            
+            // Agregar campo de búsqueda para cámaras
+            if (layers['camaras-sdt']) {
+                const searchFilter = document.createElement('div');
+                searchFilter.className = 'search-filter';
+                searchFilter.innerHTML = `
+                    <input type="text" id="cameraFilter" placeholder="Buscar cámaras por nombre..." 
+                           oninput="filterCamerasByName(this.value)">
+                    <i class="fas fa-search"></i>
+                `;
+                layersList.appendChild(searchFilter);
+            }
+            
+            // Agregar campo de búsqueda para direcciones
+            if (layers['gis_addressname']) {
+                const addressSearchFilter = document.createElement('div');
+                addressSearchFilter.className = 'search-filter';
+                addressSearchFilter.innerHTML = `
+                    <input type="text" id="addressFilter" placeholder="Buscar direcciones..." 
+                           oninput="filterAddressesByName(this.value)">
+                    <i class="fas fa-search"></i>
+                `;
+                layersList.appendChild(addressSearchFilter);
+            }
+            
+            // Agregar campo de búsqueda para puntos de interés (POI)
+            if (layers['gis_poi']) {
+                const poiSearchFilter = document.createElement('div');
+                poiSearchFilter.className = 'search-filter';
+                poiSearchFilter.innerHTML = `
+                    <input type="text" id="poiFilter" placeholder="Buscar puntos de interés..." 
+                           oninput="filterPOIsByName(this.value)">
+                    <i class="fas fa-search"></i>
+                `;
+                layersList.appendChild(poiSearchFilter);
+            }
             
             for (const tableName in layers) {
                 const layer = layers[tableName];
@@ -947,6 +1114,161 @@
             }
         }
 
+        function filterCamerasByName(searchTerm) {
+            const tableName = 'camaras-sdt';
+            const layer = layers[tableName];
+            if (!layer) return;
+            
+            searchTerm = searchTerm.toLowerCase().trim();
+            
+            // Primero, eliminar todos los marcadores actuales
+            layer.markers.clearLayers();
+            
+            if (searchTerm === '') {
+                // Si no hay término de búsqueda, mostrar todos los marcadores
+                layer.allMarkers.forEach(marker => {
+                    layer.markers.addLayer(marker);
+                });
+            } else {
+                // Filtrar y mostrar solo los marcadores que coincidan con id_de_cÁm
+                layer.allMarkers.forEach(marker => {
+                    const properties = marker.feature?.properties || {};
+                    const cameraId = properties.id_de_cÁm || '';
+                    
+                    if (cameraId.toString().toLowerCase().includes(searchTerm)) {
+                        layer.markers.addLayer(marker);
+                    }
+                });
+            }
+            
+            // Recalcular clusters
+            layer.markers.refreshClusters();
+            
+            // Si hay marcadores visibles, hacer zoom a ellos
+            if (layer.markers.getLayers().length > 0) {
+                map.fitBounds(layer.markers.getBounds());
+            }
+        }
+
+        function filterAddressesByName(searchTerm) {
+            const tableName = 'gis_addressname';
+            const layer = layers[tableName];
+            if (!layer) return;
+            
+            searchTerm = searchTerm.toLowerCase().trim();
+            
+            // Primero, eliminar todos los elementos actuales
+            layer.markers?.clearLayers();
+            layer.lines?.clearLayers();
+            layer.polygons?.clearLayers();
+            
+            if (searchTerm === '') {
+                // Si no hay término de búsqueda, mostrar todos los elementos
+                if (layer.allMarkers) {
+                    layer.allMarkers.forEach(marker => {
+                        layer.markers.addLayer(marker);
+                    });
+                }
+                if (layer.allLines) {
+                    layer.allLines.forEach(line => {
+                        layer.lines.addLayer(line);
+                    });
+                }
+                if (layer.allPolygons) {
+                    layer.allPolygons.forEach(polygon => {
+                        layer.polygons.addLayer(polygon);
+                    });
+                }
+            } else {
+                // Filtrar y mostrar solo los elementos que coincidan con el campo 'name'
+                if (layer.allMarkers) {
+                    layer.allMarkers.forEach(marker => {
+                        const properties = marker.feature?.properties || {};
+                        const addressName = properties.name || '';
+                        
+                        if (addressName.toString().toLowerCase().includes(searchTerm)) {
+                            layer.markers.addLayer(marker);
+                        }
+                    });
+                }
+                
+                if (layer.allLines) {
+                    layer.allLines.forEach(line => {
+                        const properties = line.feature?.properties || {};
+                        const addressName = properties.name || '';
+                        
+                        if (addressName.toString().toLowerCase().includes(searchTerm)) {
+                            layer.lines.addLayer(line);
+                        }
+                    });
+                }
+                
+                if (layer.allPolygons) {
+                    layer.allPolygons.forEach(polygon => {
+                        const properties = polygon.feature?.properties || {};
+                        const addressName = properties.name || '';
+                        
+                        if (addressName.toString().toLowerCase().includes(searchTerm)) {
+                            layer.polygons.addLayer(polygon);
+                        }
+                    });
+                }
+            }
+            
+            // Recalcular clusters si hay marcadores
+            if (layer.markers) {
+                layer.markers.refreshClusters();
+            }
+            
+            // Si hay elementos visibles, hacer zoom a ellos
+            const visibleLayers = [];
+            if (layer.markers?.getLayers().length > 0) visibleLayers.push(layer.markers);
+            if (layer.lines?.getLayers().length > 0) visibleLayers.push(layer.lines);
+            if (layer.polygons?.getLayers().length > 0) visibleLayers.push(layer.polygons);
+            
+            if (visibleLayers.length > 0) {
+                const bounds = new L.LatLngBounds();
+                visibleLayers.forEach(l => bounds.extend(l.getBounds()));
+                map.fitBounds(bounds);
+            }
+        }
+
+        function filterPOIsByName(searchTerm) {
+            const tableName = 'gis_poi';
+            const layer = layers[tableName];
+            if (!layer) return;
+            
+            searchTerm = searchTerm.toLowerCase().trim();
+            
+            // Primero, eliminar todos los marcadores actuales
+            layer.markers.clearLayers();
+            
+            if (searchTerm === '') {
+                // Si no hay término de búsqueda, mostrar todos los marcadores
+                layer.allMarkers.forEach(marker => {
+                    layer.markers.addLayer(marker);
+                });
+            } else {
+                // Filtrar y mostrar solo los marcadores que coincidan con el campo 'name'
+                layer.allMarkers.forEach(marker => {
+                    const properties = marker.feature?.properties || {};
+                    const poiName = properties.name || '';
+                    
+                    if (poiName.toString().toLowerCase().includes(searchTerm)) {
+                        layer.markers.addLayer(marker);
+                    }
+                });
+            }
+            
+            // Recalcular clusters
+            layer.markers.refreshClusters();
+            
+            // Si hay marcadores visibles, hacer zoom a ellos
+            if (layer.markers.getLayers().length > 0) {
+                map.fitBounds(layer.markers.getBounds());
+            }
+        }
+
         function toggleLayer(tableName, visible) {
             const layer = layers[tableName];
             if (!layer) return;
@@ -954,9 +1276,30 @@
             if (visible) {
                 map.addLayer(layer.layer);
                 layers[tableName].added = true;
+                
+                // Si es la capa de subcircuitos, actualizar las etiquetas
+                if (tableName === 'subcircuitoswgs84') {
+                    const zoom = map.getZoom();
+                    const showLabels = zoom >= 12;
+                    
+                    layer.polygons.getLayers().forEach(polygon => {
+                        if (polygon.label) {
+                            polygon.label.getElement().style.display = showLabels ? 'block' : 'none';
+                        }
+                    });
+                }
             } else {
                 map.removeLayer(layer.layer);
                 layers[tableName].added = false;
+                
+                // Si es la capa de subcircuitos, ocultar las etiquetas
+                if (tableName === 'subcircuitoswgs84') {
+                    layer.polygons.getLayers().forEach(polygon => {
+                        if (polygon.label) {
+                            polygon.label.getElement().style.display = 'none';
+                        }
+                    });
+                }
             }
             
             updateLayersList();
@@ -985,6 +1328,15 @@
             
             if (hasBounds) {
                 map.fitBounds(bounds);
+                
+                // Si es la capa de subcircuitos, mostrar las etiquetas
+                if (tableName === 'subcircuitoswgs84') {
+                    layer.polygons.getLayers().forEach(polygon => {
+                        if (polygon.label) {
+                            polygon.label.getElement().style.display = 'block';
+                        }
+                    });
+                }
             }
         }
 
@@ -1008,15 +1360,275 @@
             legendDiv.innerHTML = legendHTML;
         }
 
-        // Inicialización
+        // Inicialización automática al cargar
         document.addEventListener('DOMContentLoaded', function() {
-            // Permitir conectar con Enter
-            document.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    connect();
-                }
-            });
+            // Conectar automáticamente al cargar la página
+            connect();
+            
+            // Controlar visibilidad de etiquetas de subcircuitos basado en el zoom
+            if (map) {
+                map.on('zoomend', function() {
+                    const zoom = map.getZoom();
+                    const subcircuitLayer = layers['subcircuitoswgs84'];
+                    
+                    if (subcircuitLayer && subcircuitLayer.added) {
+                        const showLabels = zoom >= 12;
+                        
+                        subcircuitLayer.polygons.getLayers().forEach(polygon => {
+                            if (polygon.label) {
+                                polygon.label.getElement().style.display = showLabels ? 'block' : 'none';
+                            }
+                        });
+                    }
+                });
+            }
         });
     </script>
+
+
+
+
+<script>
+    // Variables para manejar la selección de ubicación
+    let locationMarker = null;
+    let mapClickListener = null;
+
+    // Función para mostrar el formulario de solicitud de cámaras
+    function showCameraRequestForm() {
+        const formHtml = `
+            <div id="cameraRequestForm" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000;">
+                <div style="background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+                    <h3 style="margin-bottom: 20px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center;">
+                        Solicitud de Instalación de Cámara
+                        <button type="button" onclick="closeCameraRequestForm()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6c757d;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </h3>
+                    <form id="requestForm" onsubmit="submitCameraRequest(event)">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Cédula *</label>
+                            <input type="text" id="cedula" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Nombres Completos *</label>
+                            <input type="text" id="nombres" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Teléfono *</label>
+                            <input type="tel" id="telefono" required 
+                                   pattern="[0-9]{7,15}" 
+                                   title="Ingrese un número de teléfono válido (7-15 dígitos)"
+                                   style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Correo Electrónico *</label>
+                            <input type="email" id="correo" required
+                                   style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Dirección Exacta *</label>
+                            <input type="text" id="direccion" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Motivo de la Solicitud *</label>
+                            <select id="motivo" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                                <option value="">Seleccione un motivo</option>
+                                <option value="Seguridad ciudadana">Seguridad ciudadana</option>
+                                <option value="Control de tráfico">Control de tráfico</option>
+                                <option value="Monitoreo de áreas públicas">Monitoreo de áreas públicas</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Observaciones *</label>
+                            <textarea id="observacion" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; min-height: 80px;"></textarea>
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Ubicación (haga clic en el mapa para seleccionar)</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="latitud" placeholder="Latitud" readonly style="flex: 1; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; background: #f8f9fa;">
+                                <input type="text" id="longitud" placeholder="Longitud" readonly style="flex: 1; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; background: #f8f9fa;">
+                            </div>
+                            <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">Haga clic en cualquier lugar del mapa para seleccionar la ubicación</p>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                            <button type="button" onclick="closeCameraRequestForm()" style="padding: 8px 16px; background: #f8f9fa; border: 1px solid #e0e6ed; border-radius: 4px; cursor: pointer;">Cancelar</button>
+                            <button type="submit" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Enviar Solicitud</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', formHtml);
+        
+        if (map) {
+            mapClickListener = function(e) {
+                setLocationFromMapClick(e);
+            };
+            map.on('click', mapClickListener);
+            document.getElementById('map').style.pointerEvents = 'auto';
+            
+            if (!locationMarker) {
+                map.setView([-0.2542, -79.1719], 14);
+            }
+            
+            alert('Por favor, haga clic en el mapa para seleccionar la ubicación de la cámara');
+        }
+    }
+
+    // Función para cerrar el formulario
+    function closeCameraRequestForm() {
+        const form = document.getElementById('cameraRequestForm');
+        if (form) {
+            if (map && mapClickListener) {
+                map.off('click', mapClickListener);
+                mapClickListener = null;
+            }
+            
+            if (locationMarker) {
+                map.removeLayer(locationMarker);
+                locationMarker = null;
+            }
+            
+            form.remove();
+        }
+    }
+
+    // Función para establecer la ubicación desde un clic en el mapa
+    function setLocationFromMapClick(e) {
+        const lat = e.latlng.lat.toFixed(6);
+        const lng = e.latlng.lng.toFixed(6);
+        
+        document.getElementById('latitud').value = lat;
+        document.getElementById('longitud').value = lng;
+        
+        if (locationMarker) {
+            map.removeLayer(locationMarker);
+        }
+        
+        locationMarker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                className: 'camera-request-marker',
+                html: '<i class="fas fa-camera" style="color: #ff4136; font-size: 24px;"></i>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 24]
+            }),
+            zIndexOffset: 1000
+        }).addTo(map);
+        
+        map.setView([lat, lng], 18);
+    }
+
+    // Función para enviar la solicitud con los nuevos campos
+    async function submitCameraRequest(event) {
+        event.preventDefault();
+        
+        const cedula = document.getElementById('cedula').value;
+        const nombres = document.getElementById('nombres').value;
+        const telefono = document.getElementById('telefono').value;
+        const correo = document.getElementById('correo').value;
+        const direccion = document.getElementById('direccion').value;
+        const motivo = document.getElementById('motivo').value;
+        const observacion = document.getElementById('observacion').value;
+        const latitud = document.getElementById('latitud').value;
+        const longitud = document.getElementById('longitud').value;
+        
+        if (!latitud || !longitud) {
+            alert('Por favor, seleccione una ubicación en el mapa haciendo clic en el lugar deseado.');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/solicitudes_camaras`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_CONFIG.KEY,
+                    'Authorization': `Bearer ${SUPABASE_CONFIG.KEY}`,
+                    'Prefer': 'return=representation; timezone=America/Guayaquil'
+                },
+                body: JSON.stringify({
+                    cedula,
+                    nombres,
+                    telefono,
+                    correo,
+                    direccion,
+                    motivo,
+                    observacion,
+                    latitud: parseFloat(latitud),
+                    longitud: parseFloat(longitud),
+                    fecha_solicitud: new Date().toISOString()
+                })
+            });
+            
+            if (response.ok) {
+                alert('Solicitud enviada con éxito. Gracias por su contribución.');
+                closeCameraRequestForm();
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Error al enviar la solicitud');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert(`Ocurrió un error al enviar la solicitud: ${error.message}`);
+        }
+    }
+
+    // Modificar el header para agregar el botón de solicitud
+    document.addEventListener('DOMContentLoaded', function() {
+        // Agregar el botón "Solicitar Cámara" junto a "Cargar Datos"
+        const connectionPanel = document.querySelector('.connection-panel');
+        if (connectionPanel) {
+            const requestButton = document.createElement('button');
+            requestButton.className = 'btn-connect';
+            requestButton.style.marginLeft = '10px';
+            requestButton.style.backgroundColor = '#b6b4b4';
+            requestButton.innerHTML = '<i class="fas fa-camera"></i> Solicitar Cámara';
+            requestButton.onclick = showCameraRequestForm;
+            connectionPanel.appendChild(requestButton);
+        }
+
+        // Estilos CSS adicionales
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .camera-request-marker {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            }
+            #cameraRequestForm {
+                pointer-events: none;
+            }
+            #cameraRequestForm > div {
+                pointer-events: auto;
+            }
+            /* Validación visual */
+            input:valid {
+                border-color: #2ECC40 !important;
+            }
+            input:invalid {
+                border-color: #FF4136 !important;
+            }
+            /* Ajuste para los botones en el header */
+            .connection-panel {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+        `;
+        document.head.appendChild(style);
+    });
+</script>
+
+
+
+
+
 </body>
 </html>
