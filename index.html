@@ -5,14 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Geoportal ECU 911 SD - Sistema de Información Geográfica</title>
 
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet MarkerCluster CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Leaflet Label CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.label@0.2.1/dist/leaflet.label.css" />
 
     <style>
@@ -568,16 +564,14 @@
 </head>
 <body>
 
-  <!-- Header -->
-    <div class="header">
+  <div class="header">
         <div class="header-content">
 
 
 <div class="logo">
     <img src="https://ecu-9-1-1.github.io/Geoportal/LOGO911.png"
          alt="Logo ECU911"
-         class="logo-image"> <!-- NEW IMAGE -->
-    <div>
+         class="logo-image"> <div>
         <h1>Geoportal ECU 911 Santo Domingo</h1>
         <div class="subtitle">Sistema de Información Geográfica</div>
     </div>
@@ -586,9 +580,7 @@
 
             <div class="connection-panel">
 
-               <!-- The "Connect" button should be here originally, but it seems to be missing.
-                    Adding it for consistency based on the original script's logic -->
-                <button class="btn-connect" onclick="connect()" title="Conectar al servidor de datos">
+               <button class="btn-connect" onclick="connect()" title="Conectar al servidor de datos">
                     <i class="fas fa-database"></i> Conectar
                 </button>
 
@@ -596,9 +588,7 @@
         </div>
     </div>
 
-    <!-- Main Container -->
     <div class="main-container">
-        <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h3>Capas de Información</h3>
@@ -625,7 +615,6 @@
             </div>
         </div>
 
-        <!-- Map Container -->
         <div class="map-container">
             <button class="sidebar-toggle" onclick="toggleSidebar()">
                 <i class="fas fa-bars"></i>
@@ -656,17 +645,19 @@
         </div>
     </div>
 
-    <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://unpkg.com/leaflet.label@0.2.1/dist/leaflet.label.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         // Hardcoded credentials
         const SUPABASE_CONFIG = {
             URL: 'https://dmlpacanmmccpikaysvm.supabase.co',
             KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtbHBhY2FubW1jY3Bpa2F5c3ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3MzkzODIsImV4cCI6MjA2NjMxNTM4Mn0.fVyKGoier5nOuNHuaOvgtcnf0OxJvPo6jvbK80jtBQU'
         };
+
+        const supabase = supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.KEY);
 
         let map = null;
         let layers = {};
@@ -693,7 +684,7 @@
             'gis_poi2': '#FF851B', // Color for gis_poi2
             'road_sdt': '#0074D9',
             'subcircuitoswgs84': '#B10DC9',
-            'cawy_cas_gis_parroquias': '#00CED1' // New color for Parroquias
+            'cawy_cas_gis_parroquias': '#CF2B19' // New color for Parroquias
         };
 
         const DISPLAY_NAMES = {
@@ -751,14 +742,14 @@
                 polygon: { color: '#0074D9', weight: 1, opacity: 0.8, fillOpacity: 0.4 }
             },
             'subcircuitoswgs84': {
-                point: { radius: 5, fillColor: '#B10DC9', color: '#fff', weight: 1.5, fillOpacity: 0.8 },
-                line: { color: '#B10DC9', weight: 1.5, opacity: 0.8 },
-                polygon: { color: '#B10DC9', weight: 1.5, opacity: 0.9, fillOpacity: 0.3 }
+                point: { radius: 5, fillColor: '#B10DC9', color: '#fff', weight: 1, fillOpacity: 0.8 },
+                line: { color: '#B10DC9', weight: 1, opacity: 0.8 },
+                polygon: { color: '#B10DC9', weight: 1, opacity: 0.9, fillOpacity: 0.3 }
             },
             'cawy_cas_gis_parroquias': { // Styles for CAWY_CAS.GIS_PARROQUIAS
-                point: { radius: 5, fillColor: '#00CED1', color: '#fff', weight: 1.5, fillOpacity: 0.8 },
-                line: { color: '#00CED1', weight: 2, opacity: 0.8 },
-                polygon: { color: '#00CED1', weight: 2, opacity: 0.9, fillOpacity: 0.3 }
+                point: { radius: 5, fillColor: '#CF2B19', weight: 1, fillOpacity: 0.8 },
+                line: { color: '#CF2B19', weight: 1, opacity: 0.8 },
+                polygon: { color: '#CF2B19', weight: 1, opacity: 0.9, fillOpacity: 0.3 }
             }
         };
 
@@ -920,7 +911,7 @@
             updateStatus(`${loadedCount} capas cargadas`, true);
             updateLayersList();
             updateLegend();
-            zoomToAll();
+            // No need to call zoomToAll() here, as no layers are initially added
         }
 
         async function loadGeoData(jsTableName) { // Parameter renamed for clarity (JS internal name)
@@ -1088,62 +1079,6 @@
                                         l.feature = feature;
                                         l.bindPopup(popupContent);
                                         l.on('click', () => showFeatureInfo(popupContent));
-
-                                        // Add label for subcircuits and now for parroquias
-                                        if ((jsTableName === 'subcircuitoswgs84' && item.nam_subcir) ||
-                                            (jsTableName === 'cawy_cas_gis_parroquias' && item.DISTRICTCO)) { // Check for DISTRICTCO
-                                            let labelText = '';
-                                            let labelClassName = 'subcircuit-label'; // Default class for labels
-
-                                            if (jsTableName === 'subcircuitoswgs84') {
-                                                labelText = item.nam_subcir;
-                                            } else if (jsTableName === 'cawy_cas_gis_parroquias') {
-                                                labelText = item.DISTRICTCO; // Use DISTRICTCO for label
-                                                labelClassName = 'parroquia-label'; // Specific class for parroquias
-                                            }
-
-                                            let center;
-                                            if (geometry.type === 'Polygon') {
-                                                center = turf.centroid(feature).geometry.coordinates;
-                                            } else if (geometry.type === 'MultiPolygon') {
-                                                const firstPolygon = {
-                                                    type: 'Feature',
-                                                    properties: {},
-                                                    geometry: {
-                                                        type: 'Polygon',
-                                                        coordinates: geometry.coordinates[0]
-                                                    }
-                                                };
-                                                center = turf.centroid(firstPolygon).geometry.coordinates;
-                                            }
-
-                                            if (center) {
-                                                const label = L.marker([center[1], center[0]], {
-                                                    icon: L.divIcon({
-                                                        className: labelClassName,
-                                                        html: `<div>${labelText}</div>`,
-                                                        iconSize: [0, 0] // No icon, just text
-                                                    }),
-                                                    interactive: false,
-                                                    zIndexOffset: -1000
-                                                }).addTo(map);
-
-                                                const updateLabelVisibility = () => {
-                                                    const zoom = map.getZoom();
-                                                    // Adjust zoom level for labels if needed, for now use 12
-                                                    if (zoom >= 12) {
-                                                        label.getElement().style.display = 'block';
-                                                    } else {
-                                                        label.getElement().style.display = 'none';
-                                                    }
-                                                };
-
-                                                updateLabelVisibility();
-                                                map.on('zoomend', updateLabelVisibility);
-
-                                                l.label = label;
-                                            }
-                                        }
                                     });
 
                                     polygonsLayer.addData(feature);
@@ -1163,7 +1098,7 @@
 
                 layers[jsTableName] = { // Use jsTableName as key for the global 'layers' object
                     layer: layerGroup,
-                    added: true,
+                    added: false, // Set to false so the layers are not initially on the map
                     count: totalCount,
                     markers: markersCluster,
                     lines: linesLayer,
@@ -1173,7 +1108,8 @@
                     allPolygons: polygonsLayer.getLayers()
                 };
 
-                map.addLayer(layerGroup);
+                // The layers are no longer added to the map by default here
+                // map.addLayer(layerGroup);
 
                 return true;
 
@@ -1467,29 +1403,9 @@
                 map.addLayer(layer.layer);
                 layers[tableName].added = true;
 
-                // If it's a layer with labels (subcircuits or parroquias), update labels visibility
-                if (tableName === 'subcircuitoswgs84' || tableName === 'cawy_cas_gis_parroquias') {
-                    const zoom = map.getZoom();
-                    const showLabels = zoom >= 12; // Labels appear at zoom 12 and higher
-
-                    layer.polygons.getLayers().forEach(polygon => {
-                        if (polygon.label) {
-                            polygon.label.getElement().style.display = showLabels ? 'block' : 'none';
-                        }
-                    });
-                }
             } else {
                 map.removeLayer(layer.layer);
                 layers[tableName].added = false;
-
-                // If it's a layer with labels, hide labels
-                if (tableName === 'subcircuitoswgs84' || tableName === 'cawy_cas_gis_parroquias') {
-                    layer.polygons.getLayers().forEach(polygon => {
-                        if (polygon.label) {
-                            polygon.label.getElement().style.display = 'none';
-                        }
-                    });
-                }
             }
 
             updateLayersList();
@@ -1518,19 +1434,6 @@
 
             if (hasBounds) {
                 map.fitBounds(bounds);
-
-                // If it's a layer with labels, ensure labels are visible if zoomed enough
-                if (tableName === 'subcircuitoswgs84' || tableName === 'cawy_cas_gis_parroquias') {
-                    layer.polygons.getLayers().forEach(polygon => {
-                        if (polygon.label) {
-                            // Only show if current zoom is sufficient
-                            const zoom = map.getZoom();
-                            if (zoom >= 12) {
-                                polygon.label.getElement().style.display = 'block';
-                            }
-                        }
-                    });
-                }
             }
         }
 
@@ -1558,37 +1461,10 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Automatically connect when the page loads
             connect();
-
-            // Control label visibility based on zoom for relevant layers
-            if (map) { // Check if map is initialized
-                map.on('zoomend', function() {
-                    // Subcircuits labels
-                    const subcircuitLayer = layers['subcircuitoswgs84'];
-                    if (subcircuitLayer && subcircuitLayer.added) {
-                        const showLabels = map.getZoom() >= 12;
-                        subcircuitLayer.polygons.getLayers().forEach(polygon => {
-                            if (polygon.label) {
-                                polygon.label.getElement().style.display = showLabels ? 'block' : 'none';
-                            }
-                        });
-                    }
-                    // Parroquias labels
-                    const parroquiasLayer = layers['cawy_cas_gis_parroquias'];
-                    if (parroquiasLayer && parroquiasLayer.added) {
-                        const showLabels = map.getZoom() >= 12;
-                        parroquiasLayer.polygons.getLayers().forEach(polygon => {
-                            if (polygon.label) {
-                                polygon.label.getElement().style.display = showLabels ? 'block' : 'none';
-                            }
-                        });
-                    }
-                });
-            }
         });
     </script>
 
 
-<!-- Camera Request Form Script -->
 <script>
     // Variables to handle location selection for camera requests
     let cameraLocationMarker = null;
@@ -1779,7 +1655,6 @@
     }
 </script>
 
-<!-- POI Registration Form Script -->
 <script>
     // Variables to handle location selection for POI registration
     let poiLocationMarker = null;
@@ -1798,11 +1673,11 @@
                     </h3>
                     <form id="poiForm" onsubmit="submitPoiRequest(event)">
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Nombre POI *</label>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Nombre - POI (SDOM/ ; CON/) *</label>
                             <input type="text" id="poiName" maxlength="254" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Código de Tipo (SDOM, CON) *</label>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Código (31B09) *</label>
                             <input type="text" id="poiTypecode" maxlength="6" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
                         <div style="margin-bottom: 15px;">
@@ -1810,8 +1685,8 @@
                             <input type="text" id="poiOrganizati" maxlength="254" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Dirección</label>
-                            <input type="text" id="poiAddress" maxlength="254" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Dirección *</label>
+                            <input type="text" id="poiAddress" maxlength="254" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 500;">Contacto Principal</label>
@@ -1826,36 +1701,44 @@
                             <input type="text" id="poiFax" maxlength="254" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Memo / Notas</label>
-                            <textarea id="poiMemo" maxlength="254" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; min-height: 60px;"></textarea>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Memo </label>
+                          
+
+<textarea id="poiMemo" maxlength="30" style="width: 100%; height: 35px; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; resize: none;"></textarea>
+
+
                         </div>
-                        <div class="checkbox-container">
-                            <input type="checkbox" id="poiIsImportant">
-                            <label for="poiIsImportant">¿Es Importante?</label>
+
+                    	    <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">IsImportant </label>
+                            <input type="text" id="poiIsImportant" maxlength="5" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
+
+
+
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 500;">Departamento de Organización</label>
                             <input type="text" id="poiOrgDepartm" maxlength="54" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Código de Distrito</label>
-                            <input type="text" id="poiDistricico" maxlength="9" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Districtco (23-50-01) *</label>
+                            <input type="text" id="poiDistricico" maxlength="9" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Alias</label>
-                            <input type="text" id="poiAlias" maxlength="254" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Alias *</label>
+                            <input type="text" id="poiAlias" maxlength="254" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Ubicación (haga clic en el mapa para seleccionar) *</label>
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Ubicación (haga clic en el mapa para seleccionar X,Y) *</label>
                             <div style="display: flex; gap: 10px;">
                                 <input type="text" id="poiLatitud" placeholder="Latitud" readonly required style="flex: 1; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; background: #f8f9fa;">
                                 <input type="text" id="poiLongitud" placeholder="Longitud" readonly required style="flex: 1; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; background: #f8f9fa;">
                             </div>
-                            <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">Haga clic en cualquier lugar del mapa para seleccionar la ubicación del POI</p>
+                            <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">Haga clic en el mapa para seleccionar la ubicación del POI</p>
                         </div>
                         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
                             <button type="button" onclick="closePoiRegistrationForm()" style="padding: 8px 16px; background: #f8f9fa; border: 1px solid #e0e6ed; border-radius: 4px; cursor: pointer;">Cancelar</button>
-                            <button type="submit" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Registrar POI</button>
+                            <button type="submit" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Guardar POI</button>
                         </div>
                     </form>
                 </div>
@@ -1876,7 +1759,7 @@
             }
             
             // Custom alert message instead of browser alert
-            displayMessage('Por favor, haga clic en el mapa para seleccionar la ubicación del Punto de Interés.', 'info');
+            displayMessage('Por favor, haga clic en el mapa para seleccionar la X,Y del Punto de Interés.', 'info');
         }
     }
 
@@ -1990,7 +1873,7 @@
                 await loadGeoData('gis_poi2');
                 updateLayersList();
                 updateLegend();
-                zoomToLayer('gis_poi2'); // Zoom to the newly added layer
+                // No need to call zoomToLayer here, the user can manually enable it
             } else {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Error al registrar el Punto de Interés');
@@ -2054,22 +1937,103 @@
         const connectionPanel = document.querySelector('.connection-panel');
         if (connectionPanel) {
             // Add "Request Camera" button
-            const requestCameraButton = document.createElement('button');
-            requestCameraButton.className = 'btn-connect';
-            requestCameraButton.style.backgroundColor = '#b6b4b4';
-            requestCameraButton.innerHTML = '<i class="fas fa-camera"></i> Solicitar Cámara';
-            requestCameraButton.onclick = showCameraRequestForm;
-            connectionPanel.appendChild(requestCameraButton);
+           // const requestCameraButton = document.createElement('button');
+          //  requestCameraButton.className = 'btn-connect';
+          //  requestCameraButton.style.backgroundColor = '#b6b4b4';
+          //  requestCameraButton.innerHTML = '<i class="fas fa-camera"></i> Solicitar Cámara';
+          //  requestCameraButton.onclick = showCameraRequestForm;
+          //  connectionPanel.appendChild(requestCameraButton);
 
             // Add "Register POI" button
             const registerPoiButton = document.createElement('button');
             registerPoiButton.className = 'btn-connect';
             registerPoiButton.style.backgroundColor = '#FF851B'; // Distinct color for POI
-            registerPoiButton.innerHTML = '<i class="fas fa-plus-circle"></i> Registrar POI';
+            registerPoiButton.innerHTML = '<i class="fas fa-plus-circle"></i> Ingresar POI';
             registerPoiButton.onclick = showPoiRegistrationForm;
             connectionPanel.appendChild(registerPoiButton);
         }
     });
+</script>
+
+<script>
+    // --- NUEVO CÓDIGO PARA AUTENTICACIÓN ---
+
+    // Botón de inicio de sesión en el header
+    const connectionPanel = document.querySelector('.connection-panel');
+    const loginButton = document.createElement('button');
+    loginButton.className = 'btn-connect';
+    loginButton.style.backgroundColor = '#667eea';
+    loginButton.innerHTML = '<i class="fas fa-user"></i> Iniciar Sesión';
+    loginButton.onclick = showLoginForm;
+    connectionPanel.appendChild(loginButton);
+
+    // Función para mostrar el formulario de inicio de sesión
+    function showLoginForm() {
+        const formHtml = `
+            <div id="loginFormModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000;">
+                <div style="background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto;">
+                    <h3 style="margin-bottom: 20px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center;">
+                        Inicio de Sesión
+                        <button type="button" onclick="closeLoginForm()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6c757d;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </h3>
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Correo Electrónico</label>
+                            <input type="email" id="loginEmail" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Contraseña</label>
+                            <input type="password" id="loginPassword" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                            <button type="button" onclick="closeLoginForm()" style="padding: 8px 16px; background: #f8f9fa; border: 1px solid #e0e6ed; border-radius: 4px; cursor: pointer;">Cancelar</button>
+                            <button type="submit" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Entrar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', formHtml);
+    }
+
+    // Función para cerrar el formulario de inicio de sesión
+    function closeLoginForm() {
+        const form = document.getElementById('loginFormModal');
+        if (form) {
+            form.remove();
+        }
+    }
+
+    // Función para manejar el inicio de sesión
+    async function handleLogin(event) {
+        event.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
+
+            if (error) {
+                throw new Error(error.message);
+            }
+
+            console.log('Login successful!', data);
+            displayMessage('Inicio de sesión exitoso.', 'success');
+            closeLoginForm();
+            // Lógica para actualizar la UI tras el inicio de sesión
+            // e.g., cambiar el botón "Iniciar Sesión" por "Cerrar Sesión"
+
+        } catch (error) {
+            console.error('Error logging in:', error);
+            displayMessage(`Error al iniciar sesión: ${error.message}`, 'error');
+        }
+    }
+
 </script>
 
 </body>
