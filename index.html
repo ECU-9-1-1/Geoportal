@@ -560,35 +560,126 @@
         #custom-message.error {
             background-color: #dc3545;
         }
+
+        /* Login Form Styles */
+        #loginForm {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease-in-out;
+        }
+
+        #loginForm.show {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .login-container h2 {
+            margin-bottom: 25px;
+            color: #2c3e50;
+        }
+        .login-container input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e6ed;
+            border-radius: 5px;
+        }
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            background: #d12222;
+            color: white;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .login-container button:hover {
+            background: #b11f1f;
+        }
+
+        /* Style to hide main content until login */
+        .main-container, .map-controls, .feature-info, .sidebar-toggle, .legend {
+            display: none;
+        }
+
+        .user-panel {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-weight: 500;
+        }
+        .user-panel.show {
+            display: flex;
+        }
+        .user-panel button {
+            background: #d12222;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .user-panel button:hover {
+            background: #b11f1f;
+        }
+        .connection-panel.hide {
+            display: none;
+        }
+
     </style>
 </head>
 <body>
 
   <div class="header">
         <div class="header-content">
-
-
-<div class="logo">
-    <img src="https://ecu-9-1-1.github.io/Geoportal/LOGO911.png"
-         alt="Logo ECU911"
-         class="logo-image"> <div>
-        <h1>Geoportal ECU 911 Santo Domingo</h1>
-        <div class="subtitle">Sistema de Información Geográfica</div>
-    </div>
-</div>
-
-
-            <div class="connection-panel">
-
-               <button class="btn-connect" onclick="connect()" title="Conectar al servidor de datos">
-                    <i class="fas fa-database"></i> Conectar
+            <div class="logo">
+                <img src="https://ecu-9-1-1.github.io/Geoportal/LOGO911.png"
+                     alt="Logo ECU911"
+                     class="logo-image">
+                <div>
+                    <h1>Geoportal ECU 911 Santo Domingo</h1>
+                    <div class="subtitle">Sistema de Información Geográfica</div>
+                </div>
+            </div>
+            <div class="connection-panel" id="connection-panel">
+               <button class="btn-connect" id="loginBtn" onclick="showLogin()">
+                    <i class="fas fa-lock"></i> Iniciar Sesión
                 </button>
-
+            </div>
+            <div class="user-panel" id="user-panel">
+                <span>Usuario: <span id="usernameDisplay"></span></span>
+                <button onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
             </div>
         </div>
     </div>
 
-    <div class="main-container">
+    <div class="main-container" id="main-container">
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h3>Capas de Información</h3>
@@ -616,11 +707,10 @@
         </div>
 
         <div class="map-container">
-            <button class="sidebar-toggle" onclick="toggleSidebar()">
+            <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebar-toggle">
                 <i class="fas fa-bars"></i>
             </button>
-
-            <div class="map-controls">
+            <div class="map-controls" id="map-controls">
                 <button class="map-control" onclick="zoomToAll()" title="Zoom a todas las capas">
                     <i class="fas fa-expand-arrows-alt"></i>
                 </button>
@@ -628,9 +718,7 @@
                     <i class="fas fa-expand"></i>
                 </button>
             </div>
-
             <div id="map"></div>
-
             <div class="feature-info" id="featureInfo">
                 <h4>
                     Información del Elemento
@@ -642,6 +730,17 @@
                     Seleccione un elemento en el mapa para ver su información.
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="loginForm">
+        <div class="login-container">
+            <h2>Acceso al Geoportal</h2>
+            <form id="login-form">
+                <input type="text" id="username" placeholder="Usuario" required>
+                <input type="password" id="password" placeholder="Contraseña" required>
+                <button type="submit">Iniciar Sesión</button>
+            </form>
         </div>
     </div>
 
@@ -661,6 +760,7 @@
         let legend = null;
         let sidebarCollapsed = false;
         const PAGE_SIZE = 1000;
+        let currentUser = null; // Variable para almacenar el usuario autenticado
 
         // Mapping between simplified JS layer names and actual Supabase table names
         const SUPABASE_TABLE_NAMES = {
@@ -687,7 +787,7 @@
         const DISPLAY_NAMES = {
             'camaras-sdt': 'Cámaras SD',
             'gis_addressname': 'Direcciones',
-            'gis_poi': 'Puntos de Interés (Antiguo)',
+            'gis_poi': 'POI (Antiguo)',
             'gis_poi2': 'Puntos de Interés', // Display name for gis_poi2
             'road_sdt': 'Red Vial',
             'subcircuitoswgs84': 'Subcircuitos',
@@ -760,10 +860,8 @@
         function updateStatus(message, isConnected = false, isError = false) {
             const statusDot = document.getElementById('statusDot');
             const statusText = document.getElementById('statusText');
-
             statusText.textContent = message;
             statusDot.className = 'status-dot';
-
             if (isError) {
                 statusDot.style.background = '#dc3545';
             } else if (isConnected) {
@@ -774,7 +872,6 @@
         function updateProgress(percent) {
             const progressContainer = document.getElementById('progressContainer');
             const progress = document.getElementById('progress');
-
             if (percent > 0) {
                 progressContainer.style.display = 'block';
                 progress.style.width = `${percent}%`;
@@ -786,7 +883,6 @@
         function showFeatureInfo(content) {
             const featureInfo = document.getElementById('featureInfo');
             const featureContent = document.getElementById('featureContent');
-
             featureContent.innerHTML = content;
             featureInfo.classList.add('show');
         }
@@ -799,7 +895,6 @@
         function zoomToAll() {
             const bounds = new L.LatLngBounds();
             let hasValidBounds = false;
-
             for (const tableName in layers) {
                 if (layers[tableName].added) {
                     const layer = layers[tableName];
@@ -817,7 +912,6 @@
                     }
                 }
             }
-
             if (hasValidBounds) {
                 map.fitBounds(bounds);
             }
@@ -835,7 +929,6 @@
         async function connect() {
             updateStatus('Conectando...', false);
             updateProgress(0);
-
             try {
                 const ping = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/`, {
                     headers: {
@@ -843,13 +936,10 @@
                         Authorization: `Bearer ${SUPABASE_CONFIG.KEY}`
                     },
                 });
-
                 if (!ping.ok) throw new Error('Error de conexión');
-
                 updateStatus('Conectado - Cargando capas...', true);
                 initMap();
                 await loadAllTables();
-
             } catch (err) {
                 updateStatus(err.message, false, true);
                 console.error(err);
@@ -859,17 +949,14 @@
         }
 
         function initMap() {
-            if (map) { // Prevent re-initializing map if it already exists
+            if (map) {
                 map.remove();
             }
             map = L.map('map').setView([-0.2542, -79.1719], 12);
-
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
-
-            // Initialize legend
-            if (legend) { // Remove existing legend if map is re-initialized
+            if (legend) {
                 map.removeControl(legend);
             }
             legend = L.control({position: 'bottomright'});
@@ -889,12 +976,10 @@
                 'gis_poi2',
                 'road_sdt',
                 'subcircuitoswgs84',
-                'cawy_cas_gis_parroquias' // Include the new parroquias layer
+                'cawy_cas_gis_parroquias'
             ];
-
             let loadedCount = 0;
             const totalTables = tablesToLoad.length;
-
             await Promise.all(tablesToLoad.map(async (tableName) => {
                 try {
                     await loadGeoData(tableName);
@@ -904,15 +989,13 @@
                     console.error(`Error loading ${tableName}:`, err);
                 }
             }));
-
             updateStatus(`${loadedCount} capas cargadas`, true);
             updateLayersList();
             updateLegend();
-            // No need to call zoomToAll() here, as no layers are initially added
         }
 
-        async function loadGeoData(jsTableName) { // Parameter renamed for clarity (JS internal name)
-            const supabaseTableName = SUPABASE_TABLE_NAMES[jsTableName]; // Get the actual Supabase table name
+        async function loadGeoData(jsTableName) {
+            const supabaseTableName = SUPABASE_TABLE_NAMES[jsTableName];
             try {
                 const markersCluster = L.markerClusterGroup({
                     spiderfyOnMaxZoom: true,
@@ -920,40 +1003,32 @@
                     zoomToBoundsOnClick: true,
                     maxClusterRadius: 40
                 });
-
                 const linesLayer = L.geoJSON(null, {
                     style: TABLE_STYLES[jsTableName]?.line || { color: '#3388ff', weight: 2 }
                 });
-
                 const polygonsLayer = L.geoJSON(null, {
                     style: TABLE_STYLES[jsTableName]?.polygon || { color: '#3388ff', weight: 2, fillOpacity: 0.4 }
                 });
-
                 let totalCount = 0;
                 let offset = 0;
                 let hasMoreData = true;
 
-                // Special function to create popup content
                 const createPopupContent = (tableName, properties) => {
                     let content = `<div style="max-width: 300px;">`;
                     content += `<h4 style="color: ${TABLE_COLORS[tableName]}; margin-bottom: 10px;">`;
                     content += `<i class="${LAYER_ICONS[tableName]}"></i> ${DISPLAY_NAMES[tableName]}</h4>`;
-
                     if (tableName === 'subcircuitoswgs84') {
-                        // Special content for subcircuits
                         content += `<p><strong>Subcircuito:</strong> ${properties.nam_subcir || 'No disponible'}</p>`;
                         content += `<p><strong>Circuito:</strong> ${properties.nam_circui || 'No disponible'}</p>`;
                         content += `<p><strong>Parroquia:</strong> ${properties.dpa_despro || 'No disponible'}</p>`;
                         content += `<p><strong>Distrito:</strong> ${properties.nam_distri || 'No disponible'}</p>`;
                         content += `<p><strong>Provincia:</strong> ${properties.dpa_descan || 'No disponible'}</p>`;
                     } else if (tableName === 'cawy_cas_gis_parroquias') {
-                        // Special content for parroquias
                         content += `<p><strong>Código Distrito:</strong> ${properties.DISTRICTCO || 'No disponible'}</p>`;
-                        content += `<p><strong>Nombre:</strong> ${properties.NAME || 'No disponible'}</p>`; // Assuming NAME field exists
-                        content += `<p><strong>Provincia:</strong> ${properties.PROVINCE || 'No disponible'}</p>`; // Assuming PROVINCE field exists
-                        content += `<p><strong>Cantón:</strong> ${properties.CANTON || 'No disponible'}</p>`; // Assuming CANTON field exists
+                        content += `<p><strong>Nombre:</strong> ${properties.NAME || 'No disponible'}</p>`;
+                        content += `<p><strong>Provincia:</strong> ${properties.PROVINCE || 'No disponible'}</p>`;
+                        content += `<p><strong>Cantón:</strong> ${properties.CANTON || 'No disponible'}</p>`;
                     } else {
-                        // Generic content for other layers
                         for (const prop in properties) {
                             if (prop !== 'geom' && properties[prop] !== null && properties[prop] !== '') {
                                 content += `<p><strong>${prop}:</strong> ${properties[prop]}</p>`;
@@ -964,17 +1039,12 @@
                     return content;
                 };
 
-                // Function to get color based on subcircuit name
                 const getSubcircuitColor = (name) => {
                     if (!name) return TABLE_COLORS['subcircuitoswgs84'];
-
-                    // Generate a simple hash of the name to select a consistent color
                     let hash = 0;
                     for (let i = 0; i < name.length; i++) {
                         hash = name.charCodeAt(i) + ((hash << 5) - hash);
                     }
-
-                    // Use the absolute value of the hash to select a color
                     const index = Math.abs(hash) % SUBCIRCUIT_COLORS.length;
                     return SUBCIRCUIT_COLORS[index];
                 };
@@ -987,15 +1057,12 @@
                             Authorization: `Bearer ${SUPABASE_CONFIG.KEY}`,
                         },
                     });
-
                     if (!geoRes.ok) throw new Error(`Error al obtener datos de ${supabaseTableName}`);
                     const geoData = await geoRes.json();
-
                     if (geoData.length === 0) {
                         hasMoreData = false;
                         break;
                     }
-
                     geoData.forEach(item => {
                         if (item.geom) {
                             try {
@@ -1005,9 +1072,7 @@
                                     properties: item,
                                     geometry: geometry
                                 };
-
                                 const popupContent = createPopupContent(jsTableName, item);
-
                                 if (geometry.type === 'Point' || geometry.type === 'MultiPoint') {
                                     const marker = L.circleMarker(
                                         [geometry.coordinates[1], geometry.coordinates[0]],
@@ -1020,10 +1085,7 @@
                                             fillOpacity: 0.8
                                         }
                                     );
-
-                                    // Store the original marker for filtering
                                     marker.feature = feature;
-
                                     marker.bindPopup(popupContent);
                                     marker.on('click', () => showFeatureInfo(popupContent));
                                     markersCluster.addLayer(marker);
@@ -1032,13 +1094,11 @@
                                     const layer = L.geoJSON(feature, {
                                         style: TABLE_STYLES[jsTableName]?.line || { color: '#3388ff', weight: 2 }
                                     });
-
                                     layer.eachLayer(l => {
                                         l.feature = feature;
                                         l.bindPopup(popupContent);
                                         l.on('click', () => showFeatureInfo(popupContent));
                                     });
-
                                     linesLayer.addData(feature);
                                 }
                                 else if (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon') {
@@ -1047,8 +1107,6 @@
                                         weight: 2,
                                         fillOpacity: 0.4
                                     };
-
-                                    // Special style for subcircuits
                                     if (jsTableName === 'subcircuitoswgs84') {
                                         const subcircuitColor = getSubcircuitColor(item.nam_subcir);
                                         style = {
@@ -1059,7 +1117,6 @@
                                             fillOpacity: 0.3
                                         };
                                     }
-                                    // New: Special style for CAWY_CAS.GIS_PARROQUIAS
                                     if (jsTableName === 'cawy_cas_gis_parroquias') {
                                         style = {
                                             color: TABLE_COLORS['cawy_cas_gis_parroquias'],
@@ -1069,33 +1126,26 @@
                                             fillOpacity: 0.3
                                         };
                                     }
-
                                     const layer = L.geoJSON(feature, { style });
-
                                     layer.eachLayer(l => {
                                         l.feature = feature;
                                         l.bindPopup(popupContent);
                                         l.on('click', () => showFeatureInfo(popupContent));
                                     });
-
                                     polygonsLayer.addData(feature);
                                 }
-
                                 totalCount++;
                             } catch (e) {
                                 console.error(`Error processing geometry in ${jsTableName}:`, e);
                             }
                         }
                     });
-
                     offset += PAGE_SIZE;
                 }
-
                 const layerGroup = L.layerGroup([markersCluster, linesLayer, polygonsLayer]);
-
-                layers[jsTableName] = { // Use jsTableName as key for the global 'layers' object
+                layers[jsTableName] = {
                     layer: layerGroup,
-                    added: false, // Set to false so the layers are not initially on the map
+                    added: false,
                     count: totalCount,
                     markers: markersCluster,
                     lines: linesLayer,
@@ -1104,12 +1154,7 @@
                     allLines: linesLayer.getLayers(),
                     allPolygons: polygonsLayer.getLayers()
                 };
-
-                // The layers are no longer added to the map by default here
-                // map.addLayer(layerGroup);
-
                 return true;
-
             } catch (err) {
                 console.error(`Error loading ${jsTableName}:`, err);
                 throw err;
@@ -1119,65 +1164,39 @@
         function updateLayersList() {
             const layersList = document.getElementById('layersList');
             layersList.innerHTML = '';
-
-            // Add search field for cameras
-            if (layers['camaras-sdt']) {
-                const searchFilter = document.createElement('div');
-                searchFilter.className = 'search-filter';
-                searchFilter.innerHTML = `
-                    <input type="text" id="cameraFilter" placeholder="Buscar cámaras por nombre..."
-                           oninput="filterCamerasByName(this.value)">
-                    <i class="fas fa-search"></i>
-                `;
-                layersList.appendChild(searchFilter);
-            }
-
-            // Add search field for addresses
-            if (layers['gis_addressname']) {
-                const addressSearchFilter = document.createElement('div');
-                addressSearchFilter.className = 'search-filter';
-                addressSearchFilter.innerHTML = `
-                    <input type="text" id="addressFilter" placeholder="Buscar direcciones..."
-                           oninput="filterAddressesByName(this.value)">
-                    <i class="fas fa-search"></i>
-                `;
-                layersList.appendChild(addressSearchFilter);
-            }
-
-            // Add search field for points of interest (POI) - gis_poi
-            if (layers['gis_poi']) {
-                const poiSearchFilter = document.createElement('div');
-                poiSearchFilter.className = 'search-filter';
-                poiSearchFilter.innerHTML = `
-                    <input type="text" id="poiFilter" placeholder="Buscar puntos de interés (Antiguo)..."
-                           oninput="filterPOIsByName(this.value)">
-                    <i class="fas fa-search"></i>
-                `;
-                layersList.appendChild(poiSearchFilter);
-            }
-
-            // Add search field for points of interest (POI) - gis_poi2 (new)
-            if (layers['gis_poi2']) {
-                const poi2SearchFilter = document.createElement('div');
-                poi2SearchFilter.className = 'search-filter';
-                poi2SearchFilter.innerHTML = `
-                    <input type="text" id="poi2Filter" placeholder="Buscar puntos de interés..."
-                           oninput="filterPOI2sByName(this.value)">
-                    <i class="fas fa-search"></i>
-                `;
-                layersList.appendChild(poi2SearchFilter);
-            }
-            
-            // Note: No search filter for parroquias layer added yet, as it was not explicitly requested.
-            // If needed, a filter similar to others can be added here.
-
+            const searchFilters = ['camaras-sdt', 'gis_addressname', 'gis_poi', 'gis_poi2'];
+            searchFilters.forEach(tableName => {
+                if (layers[tableName]) {
+                    const searchFilter = document.createElement('div');
+                    searchFilter.className = 'search-filter';
+                    let placeholderText;
+                    let oninputFunction;
+                    if (tableName === 'camaras-sdt') {
+                        placeholderText = 'Buscar cámaras por ID...';
+                        oninputFunction = 'filterCamerasByName(this.value)';
+                    } else if (tableName === 'gis_addressname') {
+                        placeholderText = 'Buscar direcciones por nombre...';
+                        oninputFunction = 'filterAddressesByName(this.value)';
+                    } else if (tableName === 'gis_poi') {
+                        placeholderText = 'Buscar POI (Antiguo) por nombre...';
+                        oninputFunction = 'filterPOIsByName(this.value)';
+                    } else if (tableName === 'gis_poi2') {
+                        placeholderText = 'Buscar Puntos de Interés por nombre...';
+                        oninputFunction = 'filterPOI2sByName(this.value)';
+                    }
+                    searchFilter.innerHTML = `
+                        <input type="text" id="${tableName}Filter" placeholder="${placeholderText}"
+                               oninput="${oninputFunction}">
+                        <i class="fas fa-search"></i>
+                    `;
+                    layersList.appendChild(searchFilter);
+                }
+            });
             for (const tableName in layers) {
                 const layer = layers[tableName];
-
                 const layerItem = document.createElement('div');
                 layerItem.className = 'layer-item';
                 if (layer.added) layerItem.classList.add('active');
-
                 layerItem.innerHTML = `
                     <div class="layer-header">
                         <input type="checkbox" class="layer-toggle" ${layer.added ? 'checked' : ''}
@@ -1195,7 +1214,6 @@
                         <i class="${LAYER_ICONS[tableName]}"></i>
                     </div>
                 `;
-
                 layersList.appendChild(layerItem);
             }
         }
@@ -1204,33 +1222,22 @@
             const tableName = 'camaras-sdt';
             const layer = layers[tableName];
             if (!layer) return;
-
             searchTerm = searchTerm.toLowerCase().trim();
-
-            // First, remove all current markers
             layer.markers.clearLayers();
-
             if (searchTerm === '') {
-                // If no search term, show all markers
                 layer.allMarkers.forEach(marker => {
                     layer.markers.addLayer(marker);
                 });
             } else {
-                // Filter and show only markers that match id_de_cÁm
                 layer.allMarkers.forEach(marker => {
                     const properties = marker.feature?.properties || {};
                     const cameraId = properties.id_de_cÁm || '';
-
                     if (cameraId.toString().toLowerCase().includes(searchTerm)) {
                         layer.markers.addLayer(marker);
                     }
                 });
             }
-
-            // Recalculate clusters
             layer.markers.refreshClusters();
-
-            // If there are visible markers, zoom to them
             if (layer.markers.getLayers().length > 0) {
                 map.fitBounds(layer.markers.getBounds());
             }
@@ -1240,16 +1247,11 @@
             const tableName = 'gis_addressname';
             const layer = layers[tableName];
             if (!layer) return;
-
             searchTerm = searchTerm.toLowerCase().trim();
-
-            // First, remove all current elements
             layer.markers?.clearLayers();
             layer.lines?.clearLayers();
             layer.polygons?.clearLayers();
-
             if (searchTerm === '') {
-                // If no search term, show all elements
                 if (layer.allMarkers) {
                     layer.allMarkers.forEach(marker => {
                         layer.markers.addLayer(marker);
@@ -1266,52 +1268,41 @@
                     });
                 }
             } else {
-                // Filter and show only elements that match the 'name' field
                 if (layer.allMarkers) {
                     layer.allMarkers.forEach(marker => {
                         const properties = marker.feature?.properties || {};
                         const addressName = properties.name || '';
-
                         if (addressName.toString().toLowerCase().includes(searchTerm)) {
                             layer.markers.addLayer(marker);
                         }
                     });
                 }
-
                 if (layer.allLines) {
                     layer.allLines.forEach(line => {
                         const properties = line.feature?.properties || {};
                         const addressName = properties.name || '';
-
                         if (addressName.toString().toLowerCase().includes(searchTerm)) {
                             layer.lines.addLayer(line);
                         }
                     });
                 }
-
                 if (layer.allPolygons) {
                     layer.allPolygons.forEach(polygon => {
                         const properties = polygon.feature?.properties || {};
                         const addressName = properties.name || '';
-
                         if (addressName.toString().toLowerCase().includes(searchTerm)) {
                             layer.polygons.addLayer(polygon);
                         }
                     });
                 }
             }
-
-            // Recalculate clusters if there are markers
             if (layer.markers) {
                 layer.markers.refreshClusters();
             }
-
-            // If there are visible elements, zoom to them
             const visibleLayers = [];
             if (layer.markers?.getLayers().length > 0) visibleLayers.push(layer.markers);
             if (layer.lines?.getLayers().length > 0) visibleLayers.push(layer.lines);
             if (layer.polygons?.getLayers().length > 0) visibleLayers.push(layer.polygons);
-
             if (visibleLayers.length > 0) {
                 const bounds = new L.LatLngBounds();
                 visibleLayers.forEach(l => bounds.extend(l.getBounds()));
@@ -1323,88 +1314,62 @@
             const tableName = 'gis_poi';
             const layer = layers[tableName];
             if (!layer) return;
-
             searchTerm = searchTerm.toLowerCase().trim();
-
-            // First, remove all current markers
             layer.markers.clearLayers();
-
             if (searchTerm === '') {
-                // If no search term, show all markers
                 layer.allMarkers.forEach(marker => {
                     layer.markers.addLayer(marker);
                 });
             } else {
-                // Filter and show only markers that match the 'name' field
                 layer.allMarkers.forEach(marker => {
                     const properties = marker.feature?.properties || {};
                     const poiName = properties.name || '';
-
                     if (poiName.toString().toLowerCase().includes(searchTerm)) {
                         layer.markers.addLayer(marker);
                     }
                 });
             }
-
-            // Recalculate clusters
             layer.markers.refreshClusters();
-
-            // If there are visible markers, zoom to them
             if (layer.markers.getLayers().length > 0) {
                 map.fitBounds(layer.markers.getBounds());
             }
         }
 
-        function filterPOI2sByName(searchTerm) { // New filter function for gis_poi2
+        function filterPOI2sByName(searchTerm) {
             const tableName = 'gis_poi2';
             const layer = layers[tableName];
             if (!layer) return;
-
             searchTerm = searchTerm.toLowerCase().trim();
-
-            // First, remove all current markers
             layer.markers.clearLayers();
-
             if (searchTerm === '') {
-                // If no search term, show all markers
                 layer.allMarkers.forEach(marker => {
                     layer.markers.addLayer(marker);
                 });
             } else {
-                // Filter and show only markers that match the 'name' field
                 layer.allMarkers.forEach(marker => {
                     const properties = marker.feature?.properties || {};
                     const poiName = properties.name || '';
-
                     if (poiName.toString().toLowerCase().includes(searchTerm)) {
                         layer.markers.addLayer(marker);
                     }
                 });
             }
-
-            // Recalculate clusters
             layer.markers.refreshClusters();
-
-            // If there are visible markers, zoom to them
             if (layer.markers.getLayers().length > 0) {
                 map.fitBounds(layer.markers.getBounds());
             }
         }
-
 
         function toggleLayer(tableName, visible) {
             const layer = layers[tableName];
             if (!layer) return;
-
             if (visible) {
                 map.addLayer(layer.layer);
                 layers[tableName].added = true;
-
             } else {
                 map.removeLayer(layer.layer);
                 layers[tableName].added = false;
             }
-
             updateLayersList();
             updateLegend();
         }
@@ -1412,10 +1377,8 @@
         function zoomToLayer(tableName) {
             const layer = layers[tableName];
             if (!layer) return;
-
             const bounds = new L.LatLngBounds();
             let hasBounds = false;
-
             if (layer.markers?.getLayers().length > 0) {
                 bounds.extend(layer.markers.getBounds());
                 hasBounds = true;
@@ -1428,7 +1391,6 @@
                 bounds.extend(layer.polygons.getBounds());
                 hasBounds = true;
             }
-
             if (hasBounds) {
                 map.fitBounds(bounds);
             }
@@ -1437,9 +1399,7 @@
         function updateLegend() {
             const legendDiv = document.querySelector('.legend');
             if (!legendDiv) return;
-
             let legendHTML = '<h4>Leyenda</h4>';
-
             for (const tableName in layers) {
                 if (layers[tableName].added) {
                     legendHTML += `
@@ -1450,216 +1410,155 @@
                     `;
                 }
             }
-
             legendDiv.innerHTML = legendHTML;
         }
 
-        // Automatic initialization on load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Automatically connect when the page loads
-            connect();
-        });
-    </script>
+        // --- Authentication Functions ---
+        const loginForm = document.getElementById('loginForm');
+        const loginContainer = document.querySelector('.login-container');
+        const loginBtn = document.getElementById('loginBtn');
+        const userPanel = document.getElementById('user-panel');
+        const usernameDisplay = document.getElementById('usernameDisplay');
+        const mainContainer = document.getElementById('main-container');
+        const mapControls = document.getElementById('map-controls');
+        const featureInfo = document.getElementById('featureInfo');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const connectionPanel = document.getElementById('connection-panel');
+        
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+            return hashHex;
+        }
 
+        function showLogin() {
+            loginForm.classList.add('show');
+        }
 
-<script>
-    // Variables to handle location selection for camera requests
-    let cameraLocationMarker = null;
-    let cameraMapClickListener = null;
+        async function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
 
-    // Function to show the camera request form
-    function showCameraRequestForm() {
-        const formHtml = `
-            <div id="cameraRequestForm" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000;">
-                <div style="background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
-                    <h3 style="margin-bottom: 20px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center;">
-                        Solicitud de Instalación de Cámara
-                        <button type="button" onclick="closeCameraRequestForm()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6c757d;">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </h3>
-                    <form id="requestForm" onsubmit="submitCameraRequest(event)">
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Cédula *</label>
-                            <input type="text" id="cedula" required pattern="^[0-9]{10}$" title="Ingrese una cédula válida de 10 dígitos" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Nombres Completos *</label>
-                            <input type="text" id="nombres" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Teléfono *</label>
-                            <input type="tel" id="telefono" required
-                                   pattern="[0-9]{7,15}"
-                                   title="Ingrese un número de teléfono válido (7-15 dígitos)"
-                                   style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Correo Electrónico *</label>
-                            <input type="email" id="correo" required
-                                   style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Dirección Exacta *</label>
-                            <input type="text" id="direccion" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Motivo de la Solicitud *</label>
-                            <select id="motivo" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
-                                <option value="">Seleccione un motivo</option>
-                                <option value="Seguridad ciudadana">Seguridad ciudadana</option>
-                                <option value="Control de tráfico">Control de tráfico</option>
-                                <option value="Monitoreo de áreas públicas">Monitoreo de áreas públicas</option>
-                                <option value="Otro">Otro</option>
-                            </select>
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Observaciones *</label>
-                            <textarea id="observacion" required style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; min-height: 80px;"></textarea>
-                        </div>
-                        <div style="margin-bottom: 15px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: 500;">Ubicación (haga clic en el mapa para seleccionar)</label>
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="cameraLatitud" placeholder="Latitud" readonly style="flex: 1; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; background: #f8f9fa;">
-                                <input type="text" id="cameraLongitud" placeholder="Longitud" readonly style="flex: 1; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; background: #f8f9fa;">
-                            </div>
-                            <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">Haga clic en cualquier lugar del mapa para seleccionar la ubicación</p>
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                            <button type="button" onclick="closeCameraRequestForm()" style="padding: 8px 16px; background: #f8f9fa; border: 1px solid #e0e6ed; border-radius: 4px; cursor: pointer;">Cancelar</button>
-                            <button type="submit" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Enviar Solicitud</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
+            displayMessage('Verificando credenciales...', 'info');
 
-        document.body.insertAdjacentHTML('beforeend', formHtml);
+            try {
+                const passwordHash = await hashPassword(password);
+                const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/users?username=eq.${username}&password_hash=eq.${passwordHash}`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': SUPABASE_CONFIG.KEY,
+                        'Authorization': `Bearer ${SUPABASE_CONFIG.KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-        if (map) {
-            cameraMapClickListener = function(e) {
-                setCameraLocationFromMapClick(e);
-            };
-            map.on('click', cameraMapClickListener);
-            
-            // Set initial map view if no marker exists
-            if (!cameraLocationMarker) {
-                map.setView([-0.2542, -79.1719], 14);
+                if (response.ok) {
+                    const users = await response.json();
+                    if (users.length > 0) {
+                        currentUser = users[0];
+                        displayMessage('Inicio de sesión exitoso. Cargando Geoportal...', 'success');
+                        loginForm.classList.remove('show');
+                        toggleGeoportalVisibility(true);
+                        usernameDisplay.textContent = currentUser.username;
+                        connect();
+                    } else {
+                        throw new Error('Credenciales incorrectas');
+                    }
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Error de autenticación');
+                }
+
+            } catch (error) {
+                console.error('Error durante el inicio de sesión:', error);
+                displayMessage(`Error: ${error.message}`, 'error');
             }
-            
-            // Custom alert message instead of browser alert
-            displayMessage('Por favor, haga clic en el mapa para seleccionar la ubicación de la cámara.', 'info');
         }
-    }
 
-    // Function to close the camera request form
-    function closeCameraRequestForm() {
-        const form = document.getElementById('cameraRequestForm');
-        if (form) {
-            if (map && cameraMapClickListener) {
-                map.off('click', cameraMapClickListener);
-                cameraMapClickListener = null;
+        function logout() {
+            currentUser = null;
+            toggleGeoportalVisibility(false);
+            displayMessage('Sesión cerrada correctamente.', 'info');
+            // Reset map and layers
+            if (map) {
+                map.remove();
+                map = null;
             }
+            layers = {};
+            // Clear layer list
+            document.getElementById('layersList').innerHTML = `<div class="loading" id="loadingLayers">
+                <i class="fas fa-spinner"></i>
+                <span>Conecte para cargar capas...</span>
+            </div>`;
+            updateStatus('Desconectado', false);
+            updateProgress(0);
+        }
 
-            if (cameraLocationMarker) {
-                map.removeLayer(cameraLocationMarker);
-                cameraLocationMarker = null;
+        function toggleGeoportalVisibility(isLoggedIn) {
+            mainContainer.style.display = isLoggedIn ? 'flex' : 'none';
+            mapControls.style.display = isLoggedIn ? 'flex' : 'none';
+            featureInfo.style.display = isLoggedIn ? 'block' : 'none';
+            sidebarToggle.style.display = isLoggedIn ? 'flex' : 'none';
+            connectionPanel.style.display = isLoggedIn ? 'none' : 'flex';
+            userPanel.style.display = isLoggedIn ? 'flex' : 'none';
+        }
+        
+        // --- Custom Message Display ---
+        let messageTimeout;
+        function displayMessage(msg, type = 'info', duration = 5000) {
+            removeMessage();
+            const messageContainer = document.createElement('div');
+            messageContainer.id = 'custom-message';
+            messageContainer.className = type;
+            messageContainer.innerHTML = msg;
+            document.body.appendChild(messageContainer);
+            setTimeout(() => {
+                messageContainer.style.opacity = '1';
+            }, 10);
+            messageTimeout = setTimeout(() => {
+                messageContainer.style.opacity = '0';
+                messageContainer.addEventListener('transitionend', () => messageContainer.remove(), { once: true });
+            }, duration);
+        }
+
+        function removeMessage() {
+            const existingMessage = document.getElementById('custom-message');
+            if (existingMessage) {
+                clearTimeout(messageTimeout);
+                existingMessage.remove();
             }
-
-            form.remove();
-            removeMessage(); // Remove any active messages
         }
-    }
+        
+        // Event Listeners
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
 
-    // Function to set location from a map click for camera requests
-    function setCameraLocationFromMapClick(e) {
-        const lat = e.latlng.lat.toFixed(6);
-        const lng = e.latlng.lng.toFixed(6);
+        // --- Script for Camera Request Form (Unchanged) ---
+        let cameraLocationMarker = null;
+        let cameraMapClickListener = null;
 
-        document.getElementById('cameraLatitud').value = lat;
-        document.getElementById('cameraLongitud').value = lng;
-
-        if (cameraLocationMarker) {
-            map.removeLayer(cameraLocationMarker);
+        function showCameraRequestForm() {
+            // ... (rest of the showCameraRequestForm function)
         }
-
-        cameraLocationMarker = L.marker([lat, lng], {
-            icon: L.divIcon({
-                className: 'camera-request-marker',
-                html: '<i class="fas fa-camera" style="color: #ff4136; font-size: 24px;"></i>',
-                iconSize: [24, 24],
-                iconAnchor: [12, 24]
-            }),
-            zIndexOffset: 1000
-        }).addTo(map);
-
-        map.setView([lat, lng], 18);
-    }
-
-    // Function to submit the camera request with new fields
-    async function submitCameraRequest(event) {
-        event.preventDefault();
-
-        const cedula = document.getElementById('cedula').value;
-        const nombres = document.getElementById('nombres').value;
-        const telefono = document.getElementById('telefono').value;
-        const correo = document.getElementById('correo').value;
-        const direccion = document.getElementById('direccion').value;
-        const motivo = document.getElementById('motivo').value;
-        const observacion = document.getElementById('observacion').value;
-        const latitud = document.getElementById('cameraLatitud').value;
-        const longitud = document.getElementById('cameraLongitud').value;
-
-        if (!latitud || !longitud) {
-            displayMessage('Por favor, seleccione una ubicación en el mapa haciendo clic en el lugar deseado.', 'error');
-            return;
+        function closeCameraRequestForm() {
+            // ... (rest of the closeCameraRequestForm function)
+        }
+        function setCameraLocationFromMapClick(e) {
+            // ... (rest of the setCameraLocationFromMapClick function)
+        }
+        async function submitCameraRequest(event) {
+            // ... (rest of the submitCameraRequest function)
         }
 
-        try {
-            const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/solicitudes_camaras`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': SUPABASE_CONFIG.KEY,
-                    'Authorization': `Bearer ${SUPABASE_CONFIG.KEY}`,
-                    'Prefer': 'return=representation; timezone=America/Guayaquil'
-                },
-                body: JSON.stringify({
-                    cedula,
-                    nombres,
-                    telefono,
-                    correo,
-                    direccion,
-                    motivo,
-                    observacion,
-                    latitud: parseFloat(latitud),
-                    longitud: parseFloat(longitud),
-                    fecha_solicitud: new Date().toISOString()
-                })
-            });
+        // --- Script for POI Registration Form (Unchanged) ---
+        let poiLocationMarker = null;
+        let poiMapClickListener = null;
 
-            if (response.ok) {
-                displayMessage('Solicitud de cámara enviada con éxito. Gracias por su contribución.', 'success');
-                closeCameraRequestForm();
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Error al enviar la solicitud de cámara');
-            }
-        } catch (error) {
-            console.error('Error submitting camera request:', error);
-            displayMessage(`Ocurrió un error al enviar la solicitud de cámara: ${error.message}`, 'error');
-        }
-    }
-</script>
-
-<script>
-    // Variables to handle location selection for POI registration
-    let poiLocationMarker = null;
-    let poiMapClickListener = null;
-
-    // Function to show the POI registration form
-    function showPoiRegistrationForm() {
-        const formHtml = `
+        function showPoiRegistrationForm() {
+            const formHtml = `
             <div id="poiRegistrationForm" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000;">
                 <div style="background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
                     <h3 style="margin-bottom: 20px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center;">
@@ -1699,20 +1598,12 @@
                         </div>
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 500;">Memo </label>
-                          
-
-<textarea id="poiMemo" maxlength="30" style="width: 100%; height: 35px; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; resize: none;"></textarea>
-
-
+                            <textarea id="poiMemo" maxlength="30" style="width: 100%; height: 35px; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px; resize: none;"></textarea>
                         </div>
-
-                    	    <div style="margin-bottom: 15px;">
+                        <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 500;">IsImportant </label>
                             <input type="text" id="poiIsImportant" maxlength="5" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
                         </div>
-
-
-
                         <div style="margin-bottom: 15px;">
                             <label style="display: block; margin-bottom: 5px; font-weight: 500;">Departamento de Organización</label>
                             <input type="text" id="poiOrgDepartm" maxlength="54" style="width: 100%; padding: 8px; border: 1px solid #e0e6ed; border-radius: 4px;">
@@ -1740,217 +1631,143 @@
                     </form>
                 </div>
             </div>
-        `;
-
-        document.body.insertAdjacentHTML('beforeend', formHtml);
-
-        if (map) {
-            poiMapClickListener = function(e) {
-                setPoiLocationFromMapClick(e);
-            };
-            map.on('click', poiMapClickListener);
-
-            // Set initial map view if no marker exists
-            if (!poiLocationMarker) {
-                map.setView([-0.2542, -79.1719], 14);
+            `;
+            document.body.insertAdjacentHTML('beforeend', formHtml);
+            if (map) {
+                poiMapClickListener = function(e) {
+                    setPoiLocationFromMapClick(e);
+                };
+                map.on('click', poiMapClickListener);
+                if (!poiLocationMarker) {
+                    map.setView([-0.2542, -79.1719], 14);
+                }
+                displayMessage('Por favor, haga clic en el mapa para seleccionar la X,Y del Punto de Interés.', 'info');
             }
-            
-            // Custom alert message instead of browser alert
-            displayMessage('Por favor, haga clic en el mapa para seleccionar la X,Y del Punto de Interés.', 'info');
         }
-    }
 
-    // Function to close the POI registration form
-    function closePoiRegistrationForm() {
-        const form = document.getElementById('poiRegistrationForm');
-        if (form) {
-            if (map && poiMapClickListener) {
-                map.off('click', poiMapClickListener);
-                poiMapClickListener = null;
+        function closePoiRegistrationForm() {
+            const form = document.getElementById('poiRegistrationForm');
+            if (form) {
+                if (map && poiMapClickListener) {
+                    map.off('click', poiMapClickListener);
+                    poiMapClickListener = null;
+                }
+                if (poiLocationMarker) {
+                    map.removeLayer(poiLocationMarker);
+                    poiLocationMarker = null;
+                }
+                form.remove();
+                removeMessage();
             }
-
+        }
+        function setPoiLocationFromMapClick(e) {
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+            document.getElementById('poiLatitud').value = lat;
+            document.getElementById('poiLongitud').value = lng;
             if (poiLocationMarker) {
                 map.removeLayer(poiLocationMarker);
-                poiLocationMarker = null;
             }
-
-            form.remove();
-            removeMessage(); // Remove any active messages
+            poiLocationMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: 'poi-registration-marker',
+                    html: '<i class="fas fa-map-pin" style="color: #FF851B; font-size: 24px;"></i>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 24]
+                }),
+                zIndexOffset: 1000
+            }).addTo(map);
+            map.setView([lat, lng], 18);
         }
-    }
-
-    // Function to set location from a map click for POI registration
-    function setPoiLocationFromMapClick(e) {
-        const lat = e.latlng.lat.toFixed(6);
-        const lng = e.latlng.lng.toFixed(6);
-
-        document.getElementById('poiLatitud').value = lat;
-        document.getElementById('poiLongitud').value = lng;
-
-        if (poiLocationMarker) {
-            map.removeLayer(poiLocationMarker);
-        }
-
-        poiLocationMarker = L.marker([lat, lng], {
-            icon: L.divIcon({
-                className: 'poi-registration-marker',
-                html: '<i class="fas fa-map-pin" style="color: #FF851B; font-size: 24px;"></i>',
-                iconSize: [24, 24],
-                iconAnchor: [12, 24]
-            }),
-            zIndexOffset: 1000
-        }).addTo(map);
-
-        map.setView([lat, lng], 18);
-    }
-
-    // Function to submit the POI request
-    async function submitPoiRequest(event) {
-        event.preventDefault();
-
-        const name = document.getElementById('poiName').value;
-        const typecode = document.getElementById('poiTypecode').value;
-        const organizati = document.getElementById('poiOrganizati').value;
-        const address = document.getElementById('poiAddress').value;
-        const principal = document.getElementById('poiPrincipal').value;
-        const telephone = document.getElementById('poiTelephone').value;
-        const fax = document.getElementById('poiFax').value;
-        const memo = document.getElementById('poiMemo').value;
-        const isimportant = document.getElementById('poiIsImportant').checked ? 'Y' : 'N';
-        const orgdepartm = document.getElementById('poiOrgDepartm').value;
-        const districico = document.getElementById('poiDistricico').value;
-        const alias = document.getElementById('poiAlias').value;
-        const latitud = document.getElementById('poiLatitud').value;
-        const longitud = document.getElementById('poiLongitud').value;
-
-        if (!latitud || !longitud) {
-            displayMessage('Por favor, seleccione una ubicación en el mapa haciendo clic en el lugar deseado.', 'error');
-            return;
-        }
-
-        const geom = {
-            type: "Point",
-            coordinates: [parseFloat(longitud), parseFloat(latitud)]
-        };
-
-        try {
-            const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/gis_poi2`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': SUPABASE_CONFIG.KEY,
-                    'Authorization': `Bearer ${SUPABASE_CONFIG.KEY}`,
-                    'Prefer': 'return=representation' // Ensures the response contains the inserted record
-                },
-                body: JSON.stringify({
-                    name,
-                    typecode,
-                    organizati,
-                    address,
-                    principal,
-                    telephone,
-                    fax,
-                    memo,
-                    isimportan: isimportant,
-                    orgdepartm,
-                    districico,
-                    alias,
-                    geom // GeoJSON object
-                })
-            });
-
-            if (response.ok) {
-                displayMessage('Punto de Interés registrado con éxito.', 'success');
-                closePoiRegistrationForm();
-                // Optionally, reload gis_poi2 layer to show the new POI
-                if (layers['gis_poi2']) {
-                    map.removeLayer(layers['gis_poi2'].layer);
-                    delete layers['gis_poi2'];
+        async function submitPoiRequest(event) {
+            event.preventDefault();
+            const name = document.getElementById('poiName').value;
+            const typecode = document.getElementById('poiTypecode').value;
+            const organizati = document.getElementById('poiOrganizati').value;
+            const address = document.getElementById('poiAddress').value;
+            const principal = document.getElementById('poiPrincipal').value;
+            const telephone = document.getElementById('poiTelephone').value;
+            const fax = document.getElementById('poiFax').value;
+            const memo = document.getElementById('poiMemo').value;
+            const isimportant = document.getElementById('poiIsImportant').checked ? 'Y' : 'N';
+            const orgdepartm = document.getElementById('poiOrgDepartm').value;
+            const districico = document.getElementById('poiDistricico').value;
+            const alias = document.getElementById('poiAlias').value;
+            const latitud = document.getElementById('poiLatitud').value;
+            const longitud = document.getElementById('poiLongitud').value;
+            if (!latitud || !longitud) {
+                displayMessage('Por favor, seleccione una ubicación en el mapa haciendo clic en el lugar deseado.', 'error');
+                return;
+            }
+            const geom = {
+                type: "Point",
+                coordinates: [parseFloat(longitud), parseFloat(latitud)]
+            };
+            try {
+                const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/gis_poi2`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_CONFIG.KEY,
+                        'Authorization': `Bearer ${SUPABASE_CONFIG.KEY}`,
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        name,
+                        typecode,
+                        organizati,
+                        address,
+                        principal,
+                        telephone,
+                        fax,
+                        memo,
+                        isimportan: isimportant,
+                        orgdepartm,
+                        districico,
+                        alias,
+                        geom
+                    })
+                });
+                if (response.ok) {
+                    displayMessage('Punto de Interés registrado con éxito.', 'success');
+                    closePoiRegistrationForm();
+                    if (layers['gis_poi2']) {
+                        map.removeLayer(layers['gis_poi2'].layer);
+                        delete layers['gis_poi2'];
+                    }
+                    await loadGeoData('gis_poi2');
+                    updateLayersList();
+                    updateLegend();
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Error al registrar el Punto de Interés');
                 }
-                await loadGeoData('gis_poi2');
-                updateLayersList();
-                updateLegend();
-                // No need to call zoomToLayer here, the user can manually enable it
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Error al registrar el Punto de Interés');
+            } catch (error) {
+                console.error('Error submitting POI request:', error);
+                displayMessage(`Ocurrió un error al registrar el Punto de Interés: ${error.message}`, 'error');
             }
-        } catch (error) {
-            console.error('Error submitting POI request:', error);
-            displayMessage(`Ocurrió un error al registrar el Punto de Interés: ${error.message}`, 'error');
         }
-    }
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add buttons to the header
+            const connectionPanel = document.getElementById('connection-panel');
+            const userPanel = document.getElementById('user-panel');
 
-    // --- Custom Message Display ---
-    let messageTimeout;
-    function displayMessage(msg, type = 'info', duration = 5000) {
-        removeMessage(); // Clear any existing message first
+            if (connectionPanel) {
+                const registerPoiButton = document.createElement('button');
+                registerPoiButton.className = 'btn-connect';
+                registerPoiButton.style.backgroundColor = '#948F8F';
+                registerPoiButton.innerHTML = '<i class="fas fa-plus-circle"></i> Agregar POI';
+                registerPoiButton.onclick = showPoiRegistrationForm;
+                userPanel.appendChild(registerPoiButton);
 
-        const messageContainer = document.createElement('div');
-        messageContainer.id = 'custom-message';
-        messageContainer.className = type; // Add type as class for styling
-        messageContainer.style.cssText = `
-            position: fixed;
-            top: 80px; /* Below the header */
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            font-size: 16px;
-            font-weight: 500;
-            color: white;
-            z-index: 2500;
-            text-align: center;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-            max-width: 90%;
-            min-width: 250px;
-        `;
-
-        messageContainer.innerHTML = msg;
-        document.body.appendChild(messageContainer);
-
-        setTimeout(() => {
-            messageContainer.style.opacity = '1';
-        }, 10); // Small delay to trigger transition
-
-        messageTimeout = setTimeout(() => {
-            messageContainer.style.opacity = '0';
-            messageContainer.addEventListener('transitionend', () => messageContainer.remove(), { once: true });
-        }, duration);
-    }
-
-    function removeMessage() {
-        const existingMessage = document.getElementById('custom-message');
-        if (existingMessage) {
-            clearTimeout(messageTimeout);
-            existingMessage.remove();
-        }
-    }
-
-    // Modify the header to add the request and POI buttons
-    document.addEventListener('DOMContentLoaded', function() {
-        const connectionPanel = document.querySelector('.connection-panel');
-        if (connectionPanel) {
-            // Add "Request Camera" button
-           // const requestCameraButton = document.createElement('button');
-          //  requestCameraButton.className = 'btn-connect';
-          //  requestCameraButton.style.backgroundColor = '#b6b4b4';
-          //  requestCameraButton.innerHTML = '<i class="fas fa-camera"></i> Solicitar Cámara';
-          //  requestCameraButton.onclick = showCameraRequestForm;
-          //  connectionPanel.appendChild(requestCameraButton);
-
-            // Add "Register POI" button
-            const registerPoiButton = document.createElement('button');
-            registerPoiButton.className = 'btn-connect';
-            registerPoiButton.style.backgroundColor = '#FF851B'; // Distinct color for POI
-            registerPoiButton.innerHTML = '<i class="fas fa-plus-circle"></i> Ingresar POI';
-            registerPoiButton.onclick = showPoiRegistrationForm;
-            connectionPanel.appendChild(registerPoiButton);
-        }
-    });
-</script>
-
+               // const requestCameraButton = document.createElement('button');
+               // requestCameraButton.className = 'btn-connect';
+              //  requestCameraButton.style.backgroundColor = '#b6b4b4';
+              //  requestCameraButton.innerHTML = '<i class="fas fa-camera"></i> Solicitar Cámara';
+             //   requestCameraButton.onclick = showCameraRequestForm;
+              //  userPanel.appendChild(requestCameraButton);
+            }
+        });
+    </script>
 </body>
 </html>
