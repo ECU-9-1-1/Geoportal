@@ -1782,6 +1782,10 @@ userPanel.appendChild(registerCameraButton);
 
 
 
+
+
+
+
 // --- Script for Camera Irregular Registration Form (CORREGIDO) ---
 let cameraIrregularMarker = null;
 let mapClickHandler = null;
@@ -1904,9 +1908,61 @@ function showCameraIrregularForm() {
                 </div>
                 <div style="margin-bottom: 15px;">
                     <label>Imagen</label>
-                    <input type="text" id="ciImagen" value="FOTOGRAFÍA" class="form-control spell-check-field uppercase-field" 
-                           style="width:100%;padding:8px;text-transform:uppercase;" spellcheck="true">
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                        <input type="text" id="ciImagen" value="FOTOGRAFÍA" class="form-control spell-check-field uppercase-field" 
+                               style="flex: 1; padding:8px;text-transform:uppercase;" spellcheck="true" readonly>
+                        <button type="button" id="btnTakePhoto" onclick="openCamera()" 
+                                style="padding:8px 12px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;">
+                            <i class="fas fa-camera"></i> Tomar Foto
+                        </button>
+                        <button type="button" id="btnSelectFile" onclick="selectImageFile()" 
+                                style="padding:8px 12px;background:#28a745;color:white;border:none;border-radius:4px;cursor:pointer;">
+                            <i class="fas fa-folder-open"></i> Archivo
+                        </button>
+                    </div>
+                    <input type="file" id="imageFileInput" accept="image/*" style="display:none;" onchange="handleFileSelect(event)">
                     <div id="ciImagen-suggestions" class="spell-suggestions"></div>
+                    
+                    <!-- Vista previa de la imagen -->
+                    <div id="imagePreview" style="margin-top: 10px; display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span style="font-size: 12px; color: #6c757d;">Vista previa:</span>
+                            <button type="button" onclick="clearImage()" 
+                                    style="padding:4px 8px;background:#dc3545;color:white;border:none;border-radius:3px;cursor:pointer;font-size:11px;">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                        <img id="previewImg" style="max-width: 100%; max-height: 200px; border: 1px solid #ddd; border-radius: 4px;">
+                        <div id="imageInfo" style="font-size: 11px; color: #6c757d; margin-top: 5px;"></div>
+                    </div>
+                    
+                    <!-- Modal para cámara -->
+                    <div id="cameraModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+                         background: rgba(0,0,0,0.8); z-index: 3000; align-items: center; justify-content: center;">
+                        <div style="background: white; padding: 20px; border-radius: 10px; max-width: 90%; max-height: 90%;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h4 style="margin: 0; color: #2c3e50;">TOMAR FOTOGRAFÍA</h4>
+                                <button type="button" onclick="closeCamera()" 
+                                        style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6c757d;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div style="text-align: center;">
+                                <video id="cameraVideo" style="max-width: 100%; max-height: 400px; border: 2px solid #007bff; border-radius: 8px;"></video>
+                                <canvas id="cameraCanvas" style="display: none;"></canvas>
+                                <div style="margin-top: 15px;">
+                                    <button type="button" onclick="capturePhoto()" 
+                                            style="padding:10px 20px;background:#007bff;color:white;border:none;border-radius:5px;cursor:pointer;margin-right:10px;">
+                                        <i class="fas fa-camera"></i> CAPTURAR
+                                    </button>
+                                    <button type="button" onclick="switchCamera()" id="switchCameraBtn"
+                                            style="padding:10px 15px;background:#6c757d;color:white;border:none;border-radius:5px;cursor:pointer;">
+                                        <i class="fas fa-sync-alt"></i> CAMBIAR CÁMARA
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div style="margin-bottom: 15px;">
                     <label>Observaciones</label>
@@ -1981,6 +2037,15 @@ function closeCameraIrregularForm() {
         if (map && mapClickHandler) {
             map.off('click', mapClickHandler);
             mapClickHandler = null;
+        }
+        
+        // Cerrar cámara si está abierta
+        closeCamera();
+        
+        // Limpiar imagen capturada
+        if (capturedImageData && capturedImageData.url) {
+            URL.revokeObjectURL(capturedImageData.url);
+            capturedImageData = null;
         }
         
         // Restaurar cursor normal
@@ -2168,6 +2233,46 @@ async function submitCameraIrregular(event) {
     try {
         displayMessage('Guardando cámara irregular...', 'info');
         
+        // Preparar datos para envío
+        let imageData = null;
+        if (capturedImageData) {
+            try {
+                // Comprimir imagen si es muy grande
+                let blobToSend = capturedImageData.blob;
+                if (capturedImageData.size > 2 * 1024 * 1024) { // Si es mayor a 2MB
+                    displayMessage('Comprimiendo imagen...', 'info');
+                    blobToSend = await compressImage(capturedImageData.blob, 1200, 0.7);
+                }
+                
+                // Convertir a base64 para envío
+                imageData = await blobToBase64(blobToSend);
+            } catch (imageError) {
+                console.error('Error procesando imagen:', imageError);
+                displayMessage('Advertencia: Error procesando imagen, se guardará sin foto', 'warning');
+            }
+        }
+        
+        const requestBody = {
+            centro_operativo: centro_operativo.toUpperCase(),
+            id_camara: id_camara.toUpperCase(),
+            ciudad: ciudad.toUpperCase(),
+            provincia: provincia.toUpperCase(),
+            direccion: direccion.toUpperCase(),
+            dueno: dueno.toUpperCase(),
+            imagen: imagen.toUpperCase(),
+            observaciones: observaciones.toUpperCase(),
+            longitud: parseFloat(longitud),
+            latitud: parseFloat(latitud),
+            geom
+        };
+        
+        // Agregar imagen si existe
+        if (imageData) {
+            requestBody.imagen_data = imageData;
+            requestBody.imagen_filename = capturedImageData.filename;
+            requestBody.imagen_type = capturedImageData.type;
+        }
+        
         const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/camaras_irregulares`, {
             method: 'POST',
             headers: {
@@ -2176,19 +2281,7 @@ async function submitCameraIrregular(event) {
                 'Authorization': `Bearer ${SUPABASE_CONFIG.KEY}`,
                 'Prefer': 'return=representation'
             },
-            body: JSON.stringify({
-                centro_operativo: centro_operativo.toUpperCase(),
-                id_camara: id_camara.toUpperCase(),
-                ciudad: ciudad.toUpperCase(),
-                provincia: provincia.toUpperCase(),
-                direccion: direccion.toUpperCase(),
-                dueno: dueno.toUpperCase(),
-                imagen: imagen.toUpperCase(),
-                observaciones: observaciones.toUpperCase(),
-                longitud: parseFloat(longitud),
-                latitud: parseFloat(latitud),
-                geom
-            })
+            body: JSON.stringify(requestBody)
         });
         
         if (response.ok) {
