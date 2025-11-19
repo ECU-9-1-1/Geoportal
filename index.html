@@ -1761,11 +1761,11 @@
                 userPanel.appendChild(registerPoiButton);
 
 
-// Botón para Registrar Cámaras Irregulares
+// Botón para Registrar Cámaras 
 const registerCameraButton = document.createElement('button');
 registerCameraButton.className = 'btn-connect';
 registerCameraButton.style.backgroundColor = '#b6b4b4';
-registerCameraButton.innerHTML = '<i class="fas fa-video"></i> Registro Cámaras Irregulares';
+registerCameraButton.innerHTML = '<i class="fas fa-video"></i> Registro Cámara';
 registerCameraButton.onclick = showCameraIrregularForm;
 userPanel.appendChild(registerCameraButton);
 
@@ -1843,7 +1843,7 @@ function showCameraIrregularForm() {
                 }
             </style>
             <h3 style="margin-bottom: 20px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center;">
-                REGISTRO CÁMARAS IRREGULARES
+                REGISTRO CÁMARA
                 <button type="button" onclick="closeCameraIrregularForm()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6c757d;">
                     <i class="fas fa-times"></i>
                 </button>
