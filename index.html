@@ -1765,8 +1765,8 @@
 const registerCameraButton = document.createElement('button');
 registerCameraButton.className = 'btn-connect';
 registerCameraButton.style.backgroundColor = '#b6b4b4';
-registerCameraButton.innerHTML = '<i class="fas fa-video"></i> Registro Cámara';
-registerCameraButton.onclick = showCameraIrregularForm;
+registerCameraButton.innerHTML = '<i class="fas fa-video"></i> Registro Cámaras';
+registerCameraButton.onclick = showCameragularForm;
 userPanel.appendChild(registerCameraButton);
 
 
@@ -1782,11 +1782,11 @@ userPanel.appendChild(registerCameraButton);
 
 
 
-// --- Script for Camera Irregular Registration Form (CORREGIDO) ---
-let cameraIrregularMarker = null;
+// --- Script for Camera gular Registration Form (CORREGIDO) ---
+let cameragularMarker = null;
 let mapClickHandler = null;
 
-function showCameraIrregularForm() {
+function showCameragularForm() {
     // Verificar que el mapa existe y está inicializado
     if (!map) {
         console.error('El mapa no está inicializado');
@@ -1795,7 +1795,7 @@ function showCameraIrregularForm() {
     }
 
     const formHtml = `
-    <div id="cameraIrregularForm" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    <div id="cameragularForm" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;
          background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 2000;">
         <div style="background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
             <!-- Estilos para el corrector ortográfico -->
@@ -1844,11 +1844,11 @@ function showCameraIrregularForm() {
             </style>
             <h3 style="margin-bottom: 20px; color: #2c3e50; display: flex; justify-content: space-between; align-items: center;">
                 REGISTRO CÁMARA
-                <button type="button" onclick="closeCameraIrregularForm()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6c757d;">
+                <button type="button" onclick="closeCameragularForm()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #6c757d;">
                     <i class="fas fa-times"></i>
                 </button>
             </h3>
-            <form id="camaraIrregularForm" onsubmit="submitCameraIrregular(event)">
+            <form id="camaragularForm" onsubmit="submitCameragular(event)">
                 <div style="margin-bottom: 15px;">
                     <label>Centro Operativo *</label>
                     <select id="ciCentroOperativo" required class="form-control" style="width:100%;padding:8px;">
@@ -1931,7 +1931,7 @@ function showCameraIrregularForm() {
                     <p style="font-size:12px;color:#6c757d;margin-top:5px;">Haga clic en el mapa para ubicar la cámara. Puede arrastrar el marcador para ajustar la posición.</p>
                 </div>
                 <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
-                    <button type="button" onclick="closeCameraIrregularForm()" style="padding:8px 16px;background:#f8f9fa;border:1px solid #ccc;border-radius:4px;cursor:pointer;">Cancelar</button>
+                    <button type="button" onclick="closeCameragularForm()" style="padding:8px 16px;background:#f8f9fa;border:1px solid #ccc;border-radius:4px;cursor:pointer;">Cancelar</button>
                     <button type="submit" style="padding:8px 16px;background:#d12222;color:white;border:none;border-radius:4px;cursor:pointer;">Guardar</button>
                 </div>
             </form>
@@ -2166,7 +2166,7 @@ async function submitCameraIrregular(event) {
     };
 
     try {
-        displayMessage('Guardando cámara irregular...', 'info');
+        displayMessage('Registro guardado...', 'info');
         
         const response = await fetch(`${SUPABASE_CONFIG.URL}/rest/v1/camaras_irregulares`, {
             method: 'POST',
@@ -2192,7 +2192,7 @@ async function submitCameraIrregular(event) {
         });
         
         if (response.ok) {
-            displayMessage('Cámara irregular registrada con éxito.', 'success');
+            displayMessage('Cámara registrada con éxito.', 'success');
             closeCameraIrregularForm();
             
             // Recargar capa si existe
@@ -2216,7 +2216,7 @@ async function submitCameraIrregular(event) {
             throw new Error(errorData.message || 'Error al registrar cámara');
         }
     } catch (error) {
-        console.error('Error registrando cámara irregular:', error);
+        console.error('Error registrando cámara:', error);
         displayMessage(`Error al guardar: ${error.message}`, 'error');
     }
 }
